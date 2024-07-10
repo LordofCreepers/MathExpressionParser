@@ -9,7 +9,7 @@ class IncorrectlyFormedNumber : public SyntaxError
 public:
 	IncorrectlyFormedNumber(size_t character) : SyntaxError(character) {};
 
-	virtual const char* what() const override
+	virtual const char* what() const noexcept override
 	{
 		return "Incorrectly formed number";
 	}
@@ -35,7 +35,7 @@ class NoMatchingToken : public ParsingError
 public:
 	NoMatchingToken(const Parser::IToken* token) : ParsingError(token) {};
 
-	virtual const char* what() const override
+	virtual const char* what() const noexcept override
 	{
 		return "No matching token found";
 	}
@@ -45,7 +45,7 @@ public:
 /* class EmptyExpression : public ExpressionError
 {
 public:
-	virtual const char* what() const override
+	virtual const char* what() const noexcept override
 	{
 		return "Empty expression";
 	}
@@ -55,7 +55,7 @@ public:
 /* class InvalidFactory : public ExpressionError
 {
 public:
-	virtual const char* what() const override
+	virtual const char* what() const noexcept override
 	{
 		return "Invalid factory";
 	}
@@ -71,7 +71,7 @@ public:
 		: CurCount(cur_count), ExpCount(exp_count), ParsingError(token)
 	{};
 
-	virtual const char* what() const override
+	virtual const char* what() const noexcept override
 	{
 		return "Mismatch between expected and provided amount of arguments";
 	}
@@ -93,7 +93,7 @@ class WrongTokenType : public ParsingError
 public:
 	WrongTokenType(const Parser::IToken* token) : ParsingError(token) {};
 
-	virtual const char* what() const override
+	virtual const char* what() const noexcept override
 	{
 		return "Wrong token type";
 	}
@@ -105,7 +105,7 @@ class DivisionByZero : public ParsingError
 public:
 	DivisionByZero(const Parser::IToken* token) : ParsingError(token) {};
 
-	virtual const char* what() const override
+	virtual const char* what() const noexcept override
 	{
 		return "Division by 0";
 	}
@@ -119,7 +119,7 @@ class NegativeNumberRoot : public ParsingError
 public:
 	NegativeNumberRoot(const Parser::IToken* token) : ParsingError(token) {};
 
-	virtual const char* what() const override
+	virtual const char* what() const noexcept override
 	{
 		return "Extracting a root from a negative number";
 	}
@@ -133,7 +133,7 @@ protected:
 public:
 	UnresolvedSymbol(const Parser::IToken* token, const std::string& symbol) : ParsingError(token), Symbol(symbol) {};
 
-	virtual const char* what() const override
+	virtual const char* what() const noexcept override
 	{
 		return "Unresolved symbol";
 	}
