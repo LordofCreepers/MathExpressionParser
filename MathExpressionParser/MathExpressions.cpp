@@ -5,6 +5,7 @@
 #include "Exceptions.hpp"
 #include "MathExpressions.hpp"
 
+// Boilerplate for constructor implementation of tokens that take substring of expression as their constructor's first parameter
 #define TOKEN_CONSTR_IMPL(ClassName, BaseClass) MathExpressions::##ClassName##::##ClassName##(Range<std::string> source_range \
 ) : ##BaseClass##(source_range) {}
 
@@ -702,6 +703,7 @@ static Parser::TokenPtr TokenFromString(
 
     size_t original_cursor = cursor;
 
+    // Check if expression substring and provided substring are equal
     bool is_equal = true;
     for (char ch : from)
     {

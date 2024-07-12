@@ -7,6 +7,7 @@
 #include "Parser/Parser.hpp"
 #include "Parser/Tree.hpp"
 
+// Boilerplate for constructor definition of tokens which constructors take in a range of source expression as a parameter
 #define TOKEN_CONSTR_DEF(ClassName, ...) ClassName##(Range<std::string>, ##__VA_ARGS__##)
 
 namespace MathExpressions
