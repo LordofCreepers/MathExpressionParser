@@ -8,7 +8,7 @@
 #include "Parser/Tree.hpp"
 
 // Boilerplate for constructor definition of tokens which constructors take in a range of source expression as a parameter
-#define TOKEN_CONSTR_DEF(ClassName, ...) ClassName##(Range<std::string>, ##__VA_ARGS__##)
+#define TOKEN_CONSTR_DEF(ClassName, ...) ClassName##(View<std::string>, ##__VA_ARGS__##)
 
 namespace MathExpressions
 {
@@ -18,7 +18,7 @@ namespace MathExpressions
 	// Token implementation that tracks where it has been sourced from
 	struct SourcedToken : public Parser::IToken
 	{
-		Range<std::string> Source;
+		View<std::string> Source;
 
 		TOKEN_CONSTR_DEF(SourcedToken);
 	};
@@ -32,14 +32,14 @@ namespace MathExpressions
 		virtual bool IsPrecedent(const Parser::IToken*) const override;
 
 		virtual void FindNextToken(
-			Range<std::vector<Parser::TokenPtr>>,
+			View<std::vector<Parser::TokenPtr>>,
 			std::vector<Parser::TokenPtr>::const_iterator&
 		) const override;
 
 		virtual void SplitPoints(
-			Range<std::vector<Parser::TokenPtr>>,
+			View<std::vector<Parser::TokenPtr>>,
 			std::vector<Parser::TokenPtr>::const_iterator,
-			std::vector<Range<std::vector<Parser::TokenPtr>>>&
+			std::vector<View<std::vector<Parser::TokenPtr>>>&
 		) const override;
 	};
 
@@ -73,7 +73,7 @@ namespace MathExpressions
 		virtual bool IsPrecedent(const Parser::IToken*) const override;
 
 		virtual void FindNextToken(
-			Range<std::vector<Parser::TokenPtr>>,
+			View<std::vector<Parser::TokenPtr>>,
 			std::vector<Parser::TokenPtr>::const_iterator&
 		) const override;
 	};
@@ -87,9 +87,9 @@ namespace MathExpressions
 		virtual size_t GetPriority() const override;
 
 		virtual void SplitPoints(
-			Range<std::vector<Parser::TokenPtr>>,
+			View<std::vector<Parser::TokenPtr>>,
 			std::vector<Parser::TokenPtr>::const_iterator,
-			std::vector<Range<std::vector<Parser::TokenPtr>>>&
+			std::vector<View<std::vector<Parser::TokenPtr>>>&
 		) const override;
 	};
 
@@ -148,9 +148,9 @@ namespace MathExpressions
 		TOKEN_CONSTR_DEF(BinaryOp);
 
 		virtual void SplitPoints(
-			Range<std::vector<Parser::TokenPtr>>,
+			View<std::vector<Parser::TokenPtr>>,
 			std::vector<Parser::TokenPtr>::const_iterator,
-			std::vector<Range<std::vector<Parser::TokenPtr>>>&
+			std::vector<View<std::vector<Parser::TokenPtr>>>&
 		) const override;
 	};
 
@@ -231,18 +231,18 @@ namespace MathExpressions
 		TOKEN_CONSTR_DEF(Pair);
 
 		virtual void FindNextToken(
-			Range<std::vector<Parser::TokenPtr>>,
+			View<std::vector<Parser::TokenPtr>>,
 			std::vector<Parser::TokenPtr>::const_iterator&
 		) const override;
 
 		virtual void SplitPoints(
-			Range<std::vector<Parser::TokenPtr>>,
+			View<std::vector<Parser::TokenPtr>>,
 			std::vector<Parser::TokenPtr>::const_iterator,
-			std::vector<Range<std::vector<Parser::TokenPtr>>>&
+			std::vector<View<std::vector<Parser::TokenPtr>>>&
 		) const override;
 
 		virtual void FindMatchingToken(
-			Range<std::vector<Parser::TokenPtr>>,
+			View<std::vector<Parser::TokenPtr>>,
 			std::vector<Parser::TokenPtr>::const_iterator&
 		) const = 0;
 
@@ -264,7 +264,7 @@ namespace MathExpressions
 		TOKEN_CONSTR_DEF(DistinctPair, bool);
 
 		virtual void FindMatchingToken(
-			Range<std::vector<Parser::TokenPtr>>,
+			View<std::vector<Parser::TokenPtr>>,
 			std::vector<Parser::TokenPtr>::const_iterator&
 		) const override;
 	};
@@ -292,7 +292,7 @@ namespace MathExpressions
 		TOKEN_CONSTR_DEF(IndistinctPair);
 
 		virtual void FindMatchingToken(
-			Range<std::vector<Parser::TokenPtr>>,
+			View<std::vector<Parser::TokenPtr>>,
 			std::vector<Parser::TokenPtr>::const_iterator&
 		) const override;
 	};
@@ -354,9 +354,9 @@ namespace MathExpressions
 		TOKEN_CONSTR_DEF(ArgumentedFunction);
 
 		virtual void SplitPoints(
-			Range<std::vector<Parser::TokenPtr>>,
+			View<std::vector<Parser::TokenPtr>>,
 			std::vector<Parser::TokenPtr>::const_iterator,
-			std::vector<Range<std::vector<Parser::TokenPtr>>>&
+			std::vector<View<std::vector<Parser::TokenPtr>>>&
 		) const override;
 	};
 

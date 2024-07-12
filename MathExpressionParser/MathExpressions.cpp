@@ -6,11 +6,11 @@
 #include "MathExpressions.hpp"
 
 // Boilerplate for constructor implementation of tokens that take substring of expression as their constructor's first parameter
-#define TOKEN_CONSTR_IMPL(ClassName, BaseClass) MathExpressions::##ClassName##::##ClassName##(Range<std::string> source_range \
+#define TOKEN_CONSTR_IMPL(ClassName, BaseClass) MathExpressions::##ClassName##::##ClassName##(View<std::string> source_range \
 ) : ##BaseClass##(source_range) {}
 
 MathExpressions::SourcedToken::SourcedToken(
-    Range<std::string> source_range
+    View<std::string> source_range
 ) : Source(source_range) {};
 
 TOKEN_CONSTR_IMPL(Token, SourcedToken);
@@ -49,7 +49,7 @@ bool MathExpressions::Token::IsPrecedent(const Parser::IToken* other) const
 }
 
 void MathExpressions::Token::FindNextToken(
-    Range<std::vector<Parser::TokenPtr>>, 
+    View<std::vector<Parser::TokenPtr>>, 
     std::vector<Parser::TokenPtr>::const_iterator& out_ptr
 ) const {
     // By default, returns the following token in the array
@@ -59,9 +59,9 @@ void MathExpressions::Token::FindNextToken(
 TOKEN_CONSTR_IMPL(Numeric, Token);
 
 void MathExpressions::Numeric::SplitPoints(
-    Range<std::vector<Parser::TokenPtr>> expression_range,
+    View<std::vector<Parser::TokenPtr>> expression_range,
     std::vector<Parser::TokenPtr>::const_iterator current_token,
-    std::vector<Range<std::vector<Parser::TokenPtr>>>& out_partition
+    std::vector<View<std::vector<Parser::TokenPtr>>>& out_partition
 ) const {
     // Numeric tokens do not depend on any children
     out_partition.clear();
@@ -117,9 +117,9 @@ long double MathExpressions::Variable::Evaluate(
 TOKEN_CONSTR_IMPL(BinaryOp, Token);
 
 void MathExpressions::BinaryOp::SplitPoints(
-    Range<std::vector<Parser::TokenPtr>> expression_range,
+    View<std::vector<Parser::TokenPtr>> expression_range,
     std::vector<Parser::TokenPtr>::const_iterator current_token,
-    std::vector<Range<std::vector<Parser::TokenPtr>>>& out_partition
+    std::vector<View<std::vector<Parser::TokenPtr>>>& out_partition
 ) const
 {
     out_partition.clear();
@@ -128,8 +128,8 @@ void MathExpressions::BinaryOp::SplitPoints(
 
     // Binary operations simply split expression into two parts - everything to the right of them
     // and everything to the left
-    out_partition.push_back({ expression_range.Start, current_token });
-    out_partition.push_back({ current_token + 1, expression_range.End });
+    out_partition.push_back({ expression_range.Source, expression_range.Start, current_token });
+    out_partition.push_back({ expression_range.Source, current_token + 1, expression_range.End });
 }
 
 TOKEN_CONSTR_IMPL(Add, BinaryOp);
@@ -255,7 +255,7 @@ long double MathExpressions::Pow::Evaluate(const Tree<Parser::TokenPtr>::NodePtr
 TOKEN_CONSTR_IMPL(Pair, Token);
 
 void MathExpressions::Pair::FindNextToken(
-    Range<std::vector<Parser::TokenPtr>> token_range,
+    View<std::vector<Parser::TokenPtr>> token_range,
     std::vector<Parser::TokenPtr>::const_iterator& out_token
 ) const {
     // Finds this token's matching token in an array
@@ -266,9 +266,9 @@ void MathExpressions::Pair::FindNextToken(
 }
 
 void MathExpressions::Pair::SplitPoints(
-    Range<std::vector<Parser::TokenPtr>> partition_range,
+    View<std::vector<Parser::TokenPtr>> partition_range,
     std::vector<Parser::TokenPtr>::const_iterator cur_token,
-    std::vector<Range<std::vector<Parser::TokenPtr>>>& out_partition
+    std::vector<View<std::vector<Parser::TokenPtr>>>& out_partition
 ) const {
     out_partition.clear();
 
@@ -277,17 +277,17 @@ void MathExpressions::Pair::SplitPoints(
     FindMatchingToken(partition_range, closing_bracket);
 
     // This token's subexpression is everything sandwitched between it and it's pair
-    out_partition.push_back({ past_bracket, closing_bracket });
+    out_partition.push_back({ partition_range.Source, past_bracket, closing_bracket });
 }
 
 MathExpressions::DistinctPair::DistinctPair(
-    Range<std::string> source_range,
+    View<std::string> source_range,
     bool variant
 ) : Variant(variant), Pair(source_range)
 {}
 
 void MathExpressions::DistinctPair::FindMatchingToken(
-    Range<std::vector<Parser::TokenPtr>> token_range, 
+    View<std::vector<Parser::TokenPtr>> token_range, 
     std::vector<Parser::TokenPtr>::const_iterator& out_token
 ) const {
     out_token++;
@@ -308,7 +308,7 @@ void MathExpressions::DistinctPair::FindMatchingToken(
 }
 
 MathExpressions::Bracket::Bracket(
-    Range<std::string> source_range,
+    View<std::string> source_range,
     bool closing
 ) : DistinctPair(source_range, closing) {};
 
@@ -336,7 +336,7 @@ long double MathExpressions::Bracket::Evaluate(const Tree<Parser::TokenPtr>::Nod
 TOKEN_CONSTR_IMPL(IndistinctPair, Pair);
 
 void MathExpressions::IndistinctPair::FindMatchingToken(
-    Range<std::vector<Parser::TokenPtr>> token_range,
+    View<std::vector<Parser::TokenPtr>> token_range,
     std::vector<Parser::TokenPtr>::const_iterator& out_token
 ) const {
     out_token++;
@@ -376,7 +376,7 @@ long double MathExpressions::ModBracket::Evaluate(
 }
 
 MathExpressions::Function::Function(
-    Range<std::string> source_range
+    View<std::string> source_range
 ) : DistinctPair(source_range, false) {};
 
 size_t MathExpressions::Function::GetPriority() const
@@ -424,13 +424,13 @@ long double MathExpressions::Logarithm10::Evaluate(const Tree<Parser::TokenPtr>:
 TOKEN_CONSTR_IMPL(ArgumentedFunction, Function);
 
 void MathExpressions::ArgumentedFunction::SplitPoints(
-    Range<std::vector<Parser::TokenPtr>> expression_range,
+    View<std::vector<Parser::TokenPtr>> expression_range,
     std::vector<Parser::TokenPtr>::const_iterator cur_token,
-    std::vector<Range<std::vector<Parser::TokenPtr>>>& partitioned_range
+    std::vector<View<std::vector<Parser::TokenPtr>>>& partitioned_range
 ) const {
     Pair::SplitPoints(expression_range, cur_token, partitioned_range);
 
-    const Range<std::vector<Parser::TokenPtr>>& found_range = partitioned_range[0];
+    const View<std::vector<Parser::TokenPtr>>& found_range = partitioned_range[0];
 
     std::vector<std::vector<Parser::TokenPtr>::const_iterator> found_separators;
 
@@ -446,17 +446,17 @@ void MathExpressions::ArgumentedFunction::SplitPoints(
 
     if (found_separators.empty()) return;
 
-    std::vector<Range<std::vector<Parser::TokenPtr>>> new_partitioned_range;
+    std::vector<View<std::vector<Parser::TokenPtr>>> new_partitioned_range;
 
     // Makes expressions between brackets and each separator subexpressions of the function
     std::vector<Parser::TokenPtr>::const_iterator prev_separator = found_range.Start;
     for (std::vector<Parser::TokenPtr>::const_iterator separator : found_separators)
     {
-        new_partitioned_range.push_back({ prev_separator, separator });
+        new_partitioned_range.push_back({ expression_range.Source, prev_separator, separator });
         prev_separator = separator + 1;
     }
 
-    new_partitioned_range.push_back({ prev_separator, found_range.End });
+    new_partitioned_range.push_back({ expression_range.Source, prev_separator, found_range.End });
 
     partitioned_range = new_partitioned_range;
 }
@@ -664,7 +664,7 @@ static Parser::TokenPtr MET_NumberFactory(const std::string& in_expr, size_t& cu
     if (cursor == original_cursor) return Parser::TokenPtr();
 
     return std::make_shared<MathExpressions::Number>(
-        Range<std::string>(in_expr.cbegin() + original_cursor, in_expr.cbegin() + cursor)
+        View<std::string>(&in_expr, in_expr.cbegin() + original_cursor, in_expr.cbegin() + cursor)
     );
 }
 
@@ -680,7 +680,7 @@ static Parser::TokenPtr TokenFromCharacter(
         std::string::const_iterator start = in_expr.cbegin() + cursor;
         cursor++;
         std::string::const_iterator end = in_expr.cbegin() + cursor;
-        return std::make_shared<T>(Range<std::string>(start, end));
+        return std::make_shared<T>(View<std::string>(&in_expr, start, end));
     }
 
     return Parser::TokenPtr();
@@ -717,7 +717,7 @@ static Parser::TokenPtr TokenFromString(
     }
 
     return (is_equal) ? 
-        std::make_shared<T>(Range<std::string>(in_expr.cbegin() + original_cursor, in_expr.cbegin() + cursor))
+        std::make_shared<T>(View<std::string>(&in_expr, in_expr.cbegin() + original_cursor, in_expr.cbegin() + cursor))
         : Parser::TokenPtr();
 }
 
@@ -772,14 +772,14 @@ static Parser::TokenPtr MET_BracketFactory(const std::string& in_expr, size_t& c
     {
         cursor++;
         // If bracket is opening, the 'Variant' on Bracket instance is set to false
-        return std::make_shared<MathExpressions::Bracket>(Range<std::string>(start, end), false);
+        return std::make_shared<MathExpressions::Bracket>(View<std::string>(&in_expr, start, end), false);
     }
 
     if (in_expr[cursor] == ')')
     {
         cursor++;
         // ...otherwise it's set to true
-        return std::make_shared<MathExpressions::Bracket>(Range<std::string>(start, end), true);
+        return std::make_shared<MathExpressions::Bracket>(View<std::string>(&in_expr, start, end), true);
     }
 
     return Parser::TokenPtr();
@@ -948,7 +948,7 @@ static Parser::TokenPtr MET_VariableFactory(const std::string& in_expr, size_t& 
         cursor++;
         std::string::const_iterator end = in_expr.cbegin() + cursor;
 
-        return std::make_shared<MathExpressions::Variable>(Range<std::string>(begin, end));
+        return std::make_shared<MathExpressions::Variable>(View<std::string>(&in_expr, begin, end));
     }
 
     return Parser::TokenPtr();
@@ -1028,13 +1028,18 @@ bool MathExpressions::ParamSeparator::IsPrecedent(const Parser::IToken*) const
     return true;
 }
 
-void MathExpressions::ParamSeparator::FindNextToken(Range<std::vector<Parser::TokenPtr>>, std::vector<Parser::TokenPtr>::const_iterator& token) const
-{
+void MathExpressions::ParamSeparator::FindNextToken(
+    View<std::vector<Parser::TokenPtr>>, 
+    std::vector<Parser::TokenPtr>::const_iterator& token
+) const {
     token++;
 }
 
-void MathExpressions::ParamSeparator::SplitPoints(Range<std::vector<Parser::TokenPtr>>, std::vector<Parser::TokenPtr>::const_iterator, std::vector<Range<std::vector<Parser::TokenPtr>>>&) const
-{
+void MathExpressions::ParamSeparator::SplitPoints(
+    View<std::vector<Parser::TokenPtr>>, 
+    std::vector<Parser::TokenPtr>::const_iterator, 
+    std::vector<View<std::vector<Parser::TokenPtr>>>&
+) const {
     // Even considering whether separators should have subexpressions
     // hints that expression itself is invalid
     throw std::exception();
