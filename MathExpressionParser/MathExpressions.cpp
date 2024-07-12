@@ -944,12 +944,11 @@ static Parser::TokenPtr MET_VariableFactory(const std::string& in_expr, size_t& 
     // Checks if found character is at least one of the allowed ones
     if (allowed_var_names.count(var_name))
     {
+        std::string::const_iterator begin = in_expr.cbegin() + cursor;
         cursor++;
+        std::string::const_iterator end = in_expr.cbegin() + cursor;
 
-        return std::make_shared<MathExpressions::Variable>(Range<std::string>(
-            in_expr.cbegin() + cursor,
-            in_expr.cbegin() + cursor + 1
-        ));
+        return std::make_shared<MathExpressions::Variable>(Range<std::string>(begin, end));
     }
 
     return Parser::TokenPtr();
