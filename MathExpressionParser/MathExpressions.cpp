@@ -656,7 +656,7 @@ static Parser::TokenPtr MET_NumberFactory(const std::string& in_expr, size_t& cu
         }
 
         cursor++;
-    } while ((std::isdigit(ch) || ch == '.') && cursor < in_expr.size());
+    } while ((std::isdigit(ch) || ch == '.') && cursor <= in_expr.size());
 
     cursor--;
 
