@@ -5,6 +5,15 @@
 #include "Exceptions.hpp"
 #include "MathExpressions.hpp"
 
+#define TOKEN_CONSTR_IMPL(ClassName, BaseClass) MathExpressions::##ClassName##::##ClassName##(Range<std::string> source_range \
+) : ##BaseClass##(source_range) {}
+
+MathExpressions::SourcedToken::SourcedToken(
+    Range<std::string> source_range
+) : Source(source_range) {};
+
+TOKEN_CONSTR_IMPL(Token, SourcedToken);
+
 void MathExpressions::Token::EvaluateChildren(
     const Tree<Parser::TokenPtr>::NodePtr& ast_node,
     std::vector<long double>& out_params,
@@ -46,6 +55,8 @@ void MathExpressions::Token::FindNextToken(
     out_ptr++;
 }
 
+TOKEN_CONSTR_IMPL(Numeric, Token);
+
 void MathExpressions::Numeric::SplitPoints(
     Range<std::vector<Parser::TokenPtr>> expression_range,
     std::vector<Parser::TokenPtr>::const_iterator current_token,
@@ -61,18 +72,16 @@ size_t MathExpressions::Numeric::GetPriority() const
     return std::numeric_limits<size_t>::max();
 }
 
-MathExpressions::Number::Number(const std::string& number) : Num(number)
-{}
-
-MathExpressions::Number::Number(std::string&& number) : Num(number)
-{}
+TOKEN_CONSTR_IMPL(Number, Numeric);
 
 long double MathExpressions::Number::Evaluate(
     const Tree<Parser::TokenPtr>::NodePtr& node, 
     const MathExpressions::Environment& env
 ) const {
-    return std::stold(Num);
+    return std::stold(std::string(Source.Start, Source.End));
 }
+
+TOKEN_CONSTR_IMPL(Pythagorean, Numeric);
 
 long double MathExpressions::Pythagorean::Evaluate(
     const Tree<Parser::TokenPtr>::NodePtr&, 
@@ -81,6 +90,8 @@ long double MathExpressions::Pythagorean::Evaluate(
     return M_PI;
 }
 
+TOKEN_CONSTR_IMPL(ExponentConst, Numeric);
+
 long double MathExpressions::ExponentConst::Evaluate(
     const Tree<Parser::TokenPtr>::NodePtr&, 
     const MathExpressions::Environment&
@@ -88,18 +99,21 @@ long double MathExpressions::ExponentConst::Evaluate(
     return M_E;
 }
 
-MathExpressions::Variable::Variable(char name) : Name(1, name) {};
+TOKEN_CONSTR_IMPL(Variable, Numeric);
 
 long double MathExpressions::Variable::Evaluate(
     const Tree<Parser::TokenPtr>::NodePtr&, 
     const MathExpressions::Environment& env
 ) const {
+    std::string var_name(Source.Start, Source.End);
     // Finds the value of the variable in 'env'
-    Environment::const_iterator var_it = env.find(Name);
-    if (var_it == env.cend()) throw UnresolvedSymbol(this, Name);
+    Environment::const_iterator var_it = env.find(var_name);
+    if (var_it == env.cend()) throw UnresolvedSymbol(this, var_name);
 
     return var_it->second;
 }
+
+TOKEN_CONSTR_IMPL(BinaryOp, Token);
 
 void MathExpressions::BinaryOp::SplitPoints(
     Range<std::vector<Parser::TokenPtr>> expression_range,
@@ -116,6 +130,8 @@ void MathExpressions::BinaryOp::SplitPoints(
     out_partition.push_back({ expression_range.Start, current_token });
     out_partition.push_back({ current_token + 1, expression_range.End });
 }
+
+TOKEN_CONSTR_IMPL(Add, BinaryOp);
 
 size_t MathExpressions::Add::GetPriority() const
 {
@@ -143,6 +159,8 @@ long double MathExpressions::Add::Evaluate(const Tree<Parser::TokenPtr>::NodePtr
     return res;
 }
 
+TOKEN_CONSTR_IMPL(Sub, BinaryOp);
+
 size_t MathExpressions::Sub::GetPriority() const
 {
     return 1;
@@ -168,6 +186,8 @@ long double MathExpressions::Sub::Evaluate(const Tree<Parser::TokenPtr>::NodePtr
     return res;
 }
 
+TOKEN_CONSTR_IMPL(Mul, BinaryOp);
+
 size_t MathExpressions::Mul::GetPriority() const
 {
     return 2;
@@ -187,6 +207,8 @@ long double MathExpressions::Mul::Evaluate(const Tree<Parser::TokenPtr>::NodePtr
 
     return res;
 }
+
+TOKEN_CONSTR_IMPL(Div, BinaryOp);
 
 size_t MathExpressions::Div::GetPriority() const
 {
@@ -211,6 +233,8 @@ long double MathExpressions::Div::Evaluate(const Tree<Parser::TokenPtr>::NodePtr
     return res;
 }
 
+TOKEN_CONSTR_IMPL(Pow, BinaryOp);
+
 size_t MathExpressions::Pow::GetPriority() const
 {
     return 3;
@@ -226,6 +250,8 @@ long double MathExpressions::Pow::Evaluate(const Tree<Parser::TokenPtr>::NodePtr
 
     return powl(params[0], params[1]);
 }
+
+TOKEN_CONSTR_IMPL(Pair, Token);
 
 void MathExpressions::Pair::FindNextToken(
     Range<std::vector<Parser::TokenPtr>> token_range,
@@ -253,7 +279,10 @@ void MathExpressions::Pair::SplitPoints(
     out_partition.push_back({ past_bracket, closing_bracket });
 }
 
-MathExpressions::DistinctPair::DistinctPair(bool variant) : Variant(variant)
+MathExpressions::DistinctPair::DistinctPair(
+    Range<std::string> source_range,
+    bool variant
+) : Variant(variant), Pair(source_range)
 {}
 
 void MathExpressions::DistinctPair::FindMatchingToken(
@@ -277,7 +306,10 @@ void MathExpressions::DistinctPair::FindMatchingToken(
     throw NoMatchingToken(this);
 }
 
-MathExpressions::Bracket::Bracket(bool closing) : DistinctPair(closing) {};
+MathExpressions::Bracket::Bracket(
+    Range<std::string> source_range,
+    bool closing
+) : DistinctPair(source_range, closing) {};
 
 size_t MathExpressions::Bracket::GetPriority() const
 {
@@ -300,6 +332,8 @@ long double MathExpressions::Bracket::Evaluate(const Tree<Parser::TokenPtr>::Nod
     return params[0];
 }
 
+TOKEN_CONSTR_IMPL(IndistinctPair, Pair);
+
 void MathExpressions::IndistinctPair::FindMatchingToken(
     Range<std::vector<Parser::TokenPtr>> token_range,
     std::vector<Parser::TokenPtr>::const_iterator& out_token
@@ -317,6 +351,8 @@ void MathExpressions::IndistinctPair::FindMatchingToken(
     throw NoMatchingToken(this);
 }
 
+TOKEN_CONSTR_IMPL(ModBracket, IndistinctPair);
+
 size_t MathExpressions::ModBracket::GetPriority() const
 {
     return std::numeric_limits<size_t>::max();
@@ -327,8 +363,10 @@ bool MathExpressions::ModBracket::IsMatchingToken(const Pair* Pair) const
     return static_cast<bool>(dynamic_cast<const ModBracket*>(Pair));
 }
 
-long double MathExpressions::ModBracket::Evaluate(const Tree<Parser::TokenPtr>::NodePtr& node, const MathExpressions::Environment& env) const
-{
+long double MathExpressions::ModBracket::Evaluate(
+    const Tree<Parser::TokenPtr>::NodePtr& node, 
+    const MathExpressions::Environment& env
+) const {
     // Return the absolute value of the value of whatever subexpression brackets have
     std::vector<long double> params;
     EvaluateChildren(node, params, env, 1);
@@ -336,7 +374,9 @@ long double MathExpressions::ModBracket::Evaluate(const Tree<Parser::TokenPtr>::
     return fabsl(params[0]);
 }
 
-MathExpressions::Function::Function() : DistinctPair(false) {};
+MathExpressions::Function::Function(
+    Range<std::string> source_range
+) : DistinctPair(source_range, false) {};
 
 size_t MathExpressions::Function::GetPriority() const
 {
@@ -350,6 +390,8 @@ bool MathExpressions::Function::IsMatchingToken(const Pair* pair) const
     return static_cast<bool>(dynamic_cast<const MathExpressions::Bracket*>(pair));
 }
 
+TOKEN_CONSTR_IMPL(LogarithmE, Function);
+
 long double MathExpressions::LogarithmE::Evaluate(const Tree<Parser::TokenPtr>::NodePtr& node, const MathExpressions::Environment& env) const
 {
     std::vector<long double> params;
@@ -357,6 +399,8 @@ long double MathExpressions::LogarithmE::Evaluate(const Tree<Parser::TokenPtr>::
 
     return logl(params[0]);
 }
+
+TOKEN_CONSTR_IMPL(Logarithm2, Function);
 
 long double MathExpressions::Logarithm2::Evaluate(const Tree<Parser::TokenPtr>::NodePtr& node, const MathExpressions::Environment& env) const
 {
@@ -366,6 +410,8 @@ long double MathExpressions::Logarithm2::Evaluate(const Tree<Parser::TokenPtr>::
     return log2l(params[0]);
 }
 
+TOKEN_CONSTR_IMPL(Logarithm10, Function);
+
 long double MathExpressions::Logarithm10::Evaluate(const Tree<Parser::TokenPtr>::NodePtr& node, const MathExpressions::Environment& env) const
 {
     std::vector<long double> params;
@@ -373,6 +419,8 @@ long double MathExpressions::Logarithm10::Evaluate(const Tree<Parser::TokenPtr>:
 
     return log10l(params[0]);
 }
+
+TOKEN_CONSTR_IMPL(ArgumentedFunction, Function);
 
 void MathExpressions::ArgumentedFunction::SplitPoints(
     Range<std::vector<Parser::TokenPtr>> expression_range,
@@ -412,6 +460,8 @@ void MathExpressions::ArgumentedFunction::SplitPoints(
     partitioned_range = new_partitioned_range;
 }
 
+TOKEN_CONSTR_IMPL(Logarithm, ArgumentedFunction);
+
 long double MathExpressions::Logarithm::Evaluate(const Tree<Parser::TokenPtr>::NodePtr& node, const MathExpressions::Environment& env) const
 {
     std::vector<long double> params;
@@ -420,6 +470,8 @@ long double MathExpressions::Logarithm::Evaluate(const Tree<Parser::TokenPtr>::N
     return logl(params[0]) / logl(params[1]);
 }
 
+TOKEN_CONSTR_IMPL(ExponentFunc, Function);
+
 long double MathExpressions::ExponentFunc::Evaluate(const Tree<Parser::TokenPtr>::NodePtr& node, const MathExpressions::Environment& env) const
 {
     std::vector<long double> params;
@@ -427,6 +479,8 @@ long double MathExpressions::ExponentFunc::Evaluate(const Tree<Parser::TokenPtr>
 
     return expl(params[0]);
 }
+
+TOKEN_CONSTR_IMPL(SquareRoot, Function);
 
 long double MathExpressions::SquareRoot::Evaluate(const Tree<Parser::TokenPtr>::NodePtr& node, const MathExpressions::Environment& env) const
 {
@@ -438,6 +492,8 @@ long double MathExpressions::SquareRoot::Evaluate(const Tree<Parser::TokenPtr>::
     return sqrtl(params[0]);
 }
 
+TOKEN_CONSTR_IMPL(Sign, Function);
+
 long double MathExpressions::Sign::Evaluate(const Tree<Parser::TokenPtr>::NodePtr& node, const MathExpressions::Environment& env) const
 {
     std::vector<long double> params;
@@ -445,6 +501,8 @@ long double MathExpressions::Sign::Evaluate(const Tree<Parser::TokenPtr>::NodePt
 
     return (params[0] == 0) ? 0 : ((params[0] > 0) ? 1 : -1);
 }
+
+TOKEN_CONSTR_IMPL(Sine, Function);
 
 long double MathExpressions::Sine::Evaluate(const Tree<Parser::TokenPtr>::NodePtr& node, const MathExpressions::Environment& env) const
 {
@@ -454,6 +512,8 @@ long double MathExpressions::Sine::Evaluate(const Tree<Parser::TokenPtr>::NodePt
     return sinl(params[0]);
 }
 
+TOKEN_CONSTR_IMPL(Cosine, Function);
+
 long double MathExpressions::Cosine::Evaluate(const Tree<Parser::TokenPtr>::NodePtr& node, const MathExpressions::Environment& env) const
 {
     std::vector<long double> params;
@@ -461,6 +521,8 @@ long double MathExpressions::Cosine::Evaluate(const Tree<Parser::TokenPtr>::Node
 
     return cosl(params[0]);
 }
+
+TOKEN_CONSTR_IMPL(Tangent, Function);
 
 long double MathExpressions::Tangent::Evaluate(const Tree<Parser::TokenPtr>::NodePtr& node, const MathExpressions::Environment& env) const
 {
@@ -470,6 +532,8 @@ long double MathExpressions::Tangent::Evaluate(const Tree<Parser::TokenPtr>::Nod
     return tanl(params[0]);
 }
 
+TOKEN_CONSTR_IMPL(Cotangent, Function);
+
 long double MathExpressions::Cotangent::Evaluate(const Tree<Parser::TokenPtr>::NodePtr& node, const MathExpressions::Environment& env) const
 {
     std::vector<long double> params;
@@ -477,6 +541,8 @@ long double MathExpressions::Cotangent::Evaluate(const Tree<Parser::TokenPtr>::N
 
     return 1 / tanl(params[0]);
 }
+
+TOKEN_CONSTR_IMPL(Arcsine, Function);
 
 long double MathExpressions::Arcsine::Evaluate(const Tree<Parser::TokenPtr>::NodePtr& node, const MathExpressions::Environment& env) const
 {
@@ -486,6 +552,8 @@ long double MathExpressions::Arcsine::Evaluate(const Tree<Parser::TokenPtr>::Nod
     return asinl(params[0]);
 }
 
+TOKEN_CONSTR_IMPL(Arccosine, Function);
+
 long double MathExpressions::Arccosine::Evaluate(const Tree<Parser::TokenPtr>::NodePtr& node, const MathExpressions::Environment& env) const
 {
     std::vector<long double> params;
@@ -493,6 +561,8 @@ long double MathExpressions::Arccosine::Evaluate(const Tree<Parser::TokenPtr>::N
 
     return acosl(params[0]);
 }
+
+TOKEN_CONSTR_IMPL(Arctangent, Function);
 
 long double MathExpressions::Arctangent::Evaluate(const Tree<Parser::TokenPtr>::NodePtr& node, const MathExpressions::Environment& env) const
 {
@@ -502,6 +572,8 @@ long double MathExpressions::Arctangent::Evaluate(const Tree<Parser::TokenPtr>::
     return atanl(params[0]);
 }
 
+TOKEN_CONSTR_IMPL(HyperbolicSine, Function);
+
 long double MathExpressions::HyperbolicSine::Evaluate(const Tree<Parser::TokenPtr>::NodePtr& node, const MathExpressions::Environment& env) const
 {
     std::vector<long double> params;
@@ -509,6 +581,8 @@ long double MathExpressions::HyperbolicSine::Evaluate(const Tree<Parser::TokenPt
 
     return sinhl(params[0]);
 }
+
+TOKEN_CONSTR_IMPL(HyperbolicCosine, Function);
 
 long double MathExpressions::HyperbolicCosine::Evaluate(const Tree<Parser::TokenPtr>::NodePtr& node, const MathExpressions::Environment& env) const
 {
@@ -518,6 +592,8 @@ long double MathExpressions::HyperbolicCosine::Evaluate(const Tree<Parser::Token
     return coshl(params[0]);
 }
 
+TOKEN_CONSTR_IMPL(HyperbolicTangent, Function);
+
 long double MathExpressions::HyperbolicTangent::Evaluate(const Tree<Parser::TokenPtr>::NodePtr& node, const MathExpressions::Environment& env) const
 {
     std::vector<long double> params;
@@ -525,6 +601,8 @@ long double MathExpressions::HyperbolicTangent::Evaluate(const Tree<Parser::Toke
 
     return tanhl(params[0]);
 }
+
+TOKEN_CONSTR_IMPL(HyperbolicArcsine, Function);
 
 long double MathExpressions::HyperbolicArcsine::Evaluate(const Tree<Parser::TokenPtr>::NodePtr& node, const MathExpressions::Environment& env) const
 {
@@ -534,6 +612,8 @@ long double MathExpressions::HyperbolicArcsine::Evaluate(const Tree<Parser::Toke
     return asinhl(params[0]);
 }
 
+TOKEN_CONSTR_IMPL(HyperbolicArccosine, Function);
+
 long double MathExpressions::HyperbolicArccosine::Evaluate(const Tree<Parser::TokenPtr>::NodePtr& node, const MathExpressions::Environment& env) const
 {
     std::vector<long double> params;
@@ -541,6 +621,8 @@ long double MathExpressions::HyperbolicArccosine::Evaluate(const Tree<Parser::To
 
     return acoshl(params[0]);
 }
+
+TOKEN_CONSTR_IMPL(HyperbolicArctangent, Function);
 
 long double MathExpressions::HyperbolicArctangent::Evaluate(const Tree<Parser::TokenPtr>::NodePtr& node, const MathExpressions::Environment& env) const
 {
@@ -573,14 +655,16 @@ static Parser::TokenPtr MET_NumberFactory(const std::string& in_expr, size_t& cu
         }
 
         cursor++;
-    } while (std::isdigit(ch) || ch == '.');
+    } while ((std::isdigit(ch) || ch == '.') && cursor < in_expr.size());
 
     cursor--;
 
     // If there were no digits, bail
     if (cursor == original_cursor) return Parser::TokenPtr();
 
-    return std::make_shared<MathExpressions::Number>(std::string(&in_expr[original_cursor], cursor - original_cursor));
+    return std::make_shared<MathExpressions::Number>(
+        Range<std::string>(in_expr.cbegin() + original_cursor, in_expr.cbegin() + cursor)
+    );
 }
 
 // Matches templated token from a single character
@@ -592,8 +676,10 @@ static Parser::TokenPtr TokenFromCharacter(
     // If we meet specified character, it's a match
     if (in_expr[cursor] == ch)
     {
+        std::string::const_iterator start = in_expr.cbegin() + cursor;
         cursor++;
-        return std::make_shared<T>();
+        std::string::const_iterator end = in_expr.cbegin() + cursor;
+        return std::make_shared<T>(Range<std::string>(start, end));
     }
 
     return Parser::TokenPtr();
@@ -614,18 +700,23 @@ static Parser::TokenPtr TokenFromString(
     // If the remaining string is shorter than the substring, bail
     if (cursor + from.size() > in_expr.size()) return Parser::TokenPtr();
 
-    // Retrieves string from expression which starts at the cursor of the same length as looked-for substring
-    std::string::const_iterator begin = in_expr.cbegin() + cursor;
-    std::string::const_iterator end = in_expr.cbegin() + cursor + from.size();
+    size_t original_cursor = cursor;
 
-    // Tries to match whatever it has retrieved with the substring
-    if (from == std::string(begin, end))
+    bool is_equal = true;
+    for (char ch : from)
     {
-        cursor += from.size();
-        return std::make_shared<T>();
+        if (in_expr[cursor] != ch)
+        {
+            is_equal = false;
+            break;
+        }
+
+        cursor++;
     }
 
-    return Parser::TokenPtr();
+    return (is_equal) ? 
+        std::make_shared<T>(Range<std::string>(in_expr.cbegin() + original_cursor, in_expr.cbegin() + cursor))
+        : Parser::TokenPtr();
 }
 
 static Parser::TokenPtr MET_PythagoreanFactory(const std::string& in_expr, size_t& cursor)
@@ -674,18 +765,19 @@ static Parser::TokenPtr MET_PowFactory(const std::string& in_expr, size_t& curso
 
 static Parser::TokenPtr MET_BracketFactory(const std::string& in_expr, size_t& cursor)
 {
+    std::string::const_iterator start = in_expr.cbegin() + cursor, end = in_expr.cbegin() + cursor + 1;
     if (in_expr[cursor] == '(')
     {
         cursor++;
         // If bracket is opening, the 'Variant' on Bracket instance is set to false
-        return std::make_shared<MathExpressions::Bracket>(false);
+        return std::make_shared<MathExpressions::Bracket>(Range<std::string>(start, end), false);
     }
 
     if (in_expr[cursor] == ')')
     {
         cursor++;
         // ...otherwise it's set to true
-        return std::make_shared<MathExpressions::Bracket>(true);
+        return std::make_shared<MathExpressions::Bracket>(Range<std::string>(start, end), true);
     }
 
     return Parser::TokenPtr();
@@ -852,7 +944,10 @@ static Parser::TokenPtr MET_VariableFactory(const std::string& in_expr, size_t& 
     {
         cursor++;
 
-        return std::make_shared<MathExpressions::Variable>(var_name);
+        return std::make_shared<MathExpressions::Variable>(Range<std::string>(
+            in_expr.cbegin() + cursor,
+            in_expr.cbegin() + cursor + 1
+        ));
     }
 
     return Parser::TokenPtr();
@@ -922,6 +1017,8 @@ const std::vector<Parser::TokenFactory>& MathExpressions::GetTokenFactories()
 
     return ME_Factories;
 }
+
+TOKEN_CONSTR_IMPL(ParamSeparator, SourcedToken);
 
 bool MathExpressions::ParamSeparator::IsPrecedent(const Parser::IToken*) const
 {

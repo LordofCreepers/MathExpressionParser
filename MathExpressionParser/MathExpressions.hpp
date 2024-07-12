@@ -7,14 +7,27 @@
 #include "Parser/Parser.hpp"
 #include "Parser/Tree.hpp"
 
+#define TOKEN_CONSTR_DEF(ClassName, ...) ClassName##(Range<std::string>, ##__VA_ARGS__##)
+
 namespace MathExpressions
 {
 	// Type that defines how variables are stored
 	using Environment = std::unordered_map<std::string, long double>;
 
-	// Separator of function call parameters
-	class ParamSeparator : public Parser::IToken
+	// Token implementation that tracks where it has been sourced from
+	struct SourcedToken : public Parser::IToken
 	{
+		Range<std::string> Source;
+
+		TOKEN_CONSTR_DEF(SourcedToken);
+	};
+
+	// Separator of function call parameters
+	class ParamSeparator : public SourcedToken
+	{
+	public:
+		TOKEN_CONSTR_DEF(ParamSeparator);
+
 		virtual bool IsPrecedent(const Parser::IToken*) const override;
 
 		virtual void FindNextToken(
@@ -30,7 +43,7 @@ namespace MathExpressions
 	};
 
 	// Basic class for all math operations, constants and functions
-	class Token : public Parser::IToken
+	class Token : public SourcedToken
 	{
 	protected:
 		// Extracts values of this token's child tokens down the ast
@@ -41,6 +54,8 @@ namespace MathExpressions
 			size_t
 		) const;
 	public:
+		TOKEN_CONSTR_DEF(Token);
+
 		/* Returns priority of this operation or function
 		The lower the priority, the higher up the tree token is
 		*/
@@ -66,6 +81,8 @@ namespace MathExpressions
 	class Numeric : public Token
 	{
 	public:
+		TOKEN_CONSTR_DEF(Numeric);
+
 		virtual size_t GetPriority() const override;
 
 		virtual void SplitPoints(
@@ -78,12 +95,8 @@ namespace MathExpressions
 	// Number ("123.45" and the like)
 	class Number : public Numeric
 	{
-	protected:
-		// Number represented by string
-		std::string Num;
 	public:
-		Number(const std::string&);
-		Number(std::string&&);
+		TOKEN_CONSTR_DEF(Number);
 
 		virtual long double Evaluate(
 			const Tree<Parser::TokenPtr>::NodePtr&,
@@ -95,6 +108,8 @@ namespace MathExpressions
 	class Pythagorean : public Numeric
 	{
 	public:
+		TOKEN_CONSTR_DEF(Pythagorean);
+
 		virtual long double Evaluate(
 			const Tree<Parser::TokenPtr>::NodePtr&,
 			const Environment&
@@ -105,20 +120,19 @@ namespace MathExpressions
 	class ExponentConst : public Numeric
 	{
 	public:
+		TOKEN_CONSTR_DEF(ExponentConst);
+
 		virtual long double Evaluate(
 			const Tree<Parser::TokenPtr>::NodePtr&,
 			const Environment&
 		) const override;
 	};
 
-	// Variable (in expression '2x' 'x' is the variable)
+	// Variable
 	class Variable : public Numeric
 	{
-	protected:
-		// Variable name
-		std::string Name;
 	public:
-		Variable(char);
+		TOKEN_CONSTR_DEF(Variable);
 
 		virtual long double Evaluate(
 			const Tree<Parser::TokenPtr>::NodePtr&,
@@ -130,6 +144,8 @@ namespace MathExpressions
 	class BinaryOp : public Token
 	{
 	public:
+		TOKEN_CONSTR_DEF(BinaryOp);
+
 		virtual void SplitPoints(
 			Range<std::vector<Parser::TokenPtr>>,
 			std::vector<Parser::TokenPtr>::const_iterator,
@@ -141,7 +157,7 @@ namespace MathExpressions
 	class Add : public BinaryOp
 	{
 	public:
-		Add() = default;
+		TOKEN_CONSTR_DEF(Add);
 
 		virtual size_t GetPriority() const override;
 
@@ -155,7 +171,7 @@ namespace MathExpressions
 	class Sub : public BinaryOp
 	{
 	public:
-		Sub() = default;
+		TOKEN_CONSTR_DEF(Sub);
 
 		virtual size_t GetPriority() const override;
 
@@ -169,7 +185,7 @@ namespace MathExpressions
 	class Mul : public BinaryOp
 	{
 	public:
-		Mul() = default;
+		TOKEN_CONSTR_DEF(Mul);
 
 		virtual size_t GetPriority() const override;
 
@@ -183,7 +199,7 @@ namespace MathExpressions
 	class Div : public BinaryOp
 	{
 	public:
-		Div() = default;
+		TOKEN_CONSTR_DEF(Div);
 
 		virtual size_t GetPriority() const override;
 
@@ -197,7 +213,7 @@ namespace MathExpressions
 	class Pow : public BinaryOp
 	{
 	public:
-		Pow() = default;
+		TOKEN_CONSTR_DEF(Pow);
 
 		virtual size_t GetPriority() const override;
 
@@ -211,7 +227,7 @@ namespace MathExpressions
 	class Pair : public Token
 	{
 	public:
-		Pair() = default;
+		TOKEN_CONSTR_DEF(Pair);
 
 		virtual void FindNextToken(
 			Range<std::vector<Parser::TokenPtr>>,
@@ -244,7 +260,7 @@ namespace MathExpressions
 		*/
 		bool Variant;
 
-		DistinctPair(bool);
+		TOKEN_CONSTR_DEF(DistinctPair, bool);
 
 		virtual void FindMatchingToken(
 			Range<std::vector<Parser::TokenPtr>>,
@@ -256,7 +272,7 @@ namespace MathExpressions
 	class Bracket : public DistinctPair
 	{
 	public:
-		Bracket(bool);
+		TOKEN_CONSTR_DEF(Bracket, bool);
 
 		virtual size_t GetPriority() const override;
 
@@ -272,6 +288,8 @@ namespace MathExpressions
 	class IndistinctPair : public Pair
 	{
 	public:
+		TOKEN_CONSTR_DEF(IndistinctPair);
+
 		virtual void FindMatchingToken(
 			Range<std::vector<Parser::TokenPtr>>,
 			std::vector<Parser::TokenPtr>::const_iterator&
@@ -282,6 +300,8 @@ namespace MathExpressions
 	class ModBracket : public IndistinctPair
 	{
 	public:
+		TOKEN_CONSTR_DEF(ModBracket);
+
 		virtual size_t GetPriority() const override;
 
 		virtual bool IsMatchingToken(const Pair*) const override;
@@ -292,8 +312,8 @@ namespace MathExpressions
 	class Function : public DistinctPair
 	{
 	public:
-		Function();
-
+		TOKEN_CONSTR_DEF(Function);
+			
 		virtual size_t GetPriority() const override;
 
 		virtual bool IsMatchingToken(const Pair*) const override;
@@ -303,6 +323,8 @@ namespace MathExpressions
 	class LogarithmE : public Function
 	{
 	public:
+		TOKEN_CONSTR_DEF(LogarithmE);
+
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
@@ -310,6 +332,8 @@ namespace MathExpressions
 	class Logarithm2 : public Function
 	{
 	public:
+		TOKEN_CONSTR_DEF(Logarithm2);
+
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
@@ -317,6 +341,8 @@ namespace MathExpressions
 	class Logarithm10 : public Function
 	{
 	public:
+		TOKEN_CONSTR_DEF(Logarithm10);
+
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
@@ -324,6 +350,8 @@ namespace MathExpressions
 	class ArgumentedFunction : public Function
 	{
 	public:
+		TOKEN_CONSTR_DEF(ArgumentedFunction);
+
 		virtual void SplitPoints(
 			Range<std::vector<Parser::TokenPtr>>,
 			std::vector<Parser::TokenPtr>::const_iterator,
@@ -335,6 +363,8 @@ namespace MathExpressions
 	class Logarithm : public ArgumentedFunction
 	{
 	public:
+		TOKEN_CONSTR_DEF(Logarithm);
+
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
@@ -342,12 +372,16 @@ namespace MathExpressions
 	class ExponentFunc : public Function
 	{
 	public:
+		TOKEN_CONSTR_DEF(ExponentFunc);
+
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
 	class SquareRoot : public Function
 	{
 	public:
+		TOKEN_CONSTR_DEF(SquareRoot);
+
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
@@ -355,84 +389,112 @@ namespace MathExpressions
 	class Sign : public Function
 	{
 	public:
+		TOKEN_CONSTR_DEF(Sign);
+
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
 	class Sine : public Function
 	{
 	public:
+		TOKEN_CONSTR_DEF(Sine);
+
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
 	class Cosine : public Function
 	{
 	public:
+		TOKEN_CONSTR_DEF(Cosine);
+
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
 	class Tangent : public Function
 	{
 	public:
+		TOKEN_CONSTR_DEF(Tangent);
+
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
 	class Cotangent : public Function
 	{
 	public:
+		TOKEN_CONSTR_DEF(Cotangent);
+
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
 	class Arcsine : public Function
 	{
 	public:
+		TOKEN_CONSTR_DEF(Arcsine);
+
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
 	class Arccosine : public Function
 	{
 	public:
+		TOKEN_CONSTR_DEF(Arccosine);
+
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
 	class Arctangent : public Function
 	{
 	public:
+		TOKEN_CONSTR_DEF(Arctangent);
+
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
 	class HyperbolicSine : public Function
 	{
 	public:
+		TOKEN_CONSTR_DEF(HyperbolicSine);
+
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
 	class HyperbolicCosine : public Function
 	{
 	public:
+		TOKEN_CONSTR_DEF(HyperbolicCosine);
+
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
 	class HyperbolicTangent : public Function
 	{
 	public:
+		TOKEN_CONSTR_DEF(HyperbolicTangent);
+
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
 	class HyperbolicArcsine : public Function
 	{
 	public:
+		TOKEN_CONSTR_DEF(HyperbolicArcsine);
+
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
 	class HyperbolicArccosine : public Function
 	{
 	public:
+		TOKEN_CONSTR_DEF(HyperbolicArccosine);
+
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
 	class HyperbolicArctangent : public Function
 	{
 	public:
+		TOKEN_CONSTR_DEF(HyperbolicArctangent);
+
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
