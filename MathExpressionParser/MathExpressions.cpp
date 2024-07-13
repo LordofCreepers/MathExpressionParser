@@ -968,6 +968,33 @@ static Parser::TokenPtr MET_VariableFactory(const std::string& in_expr, size_t& 
         Parser::TokenPtr();
 }
 
+
+TOKEN_CONSTR_IMPL(ParamSeparator, SourcedToken);
+
+bool MathExpressions::ParamSeparator::IsPrecedent(const Parser::IToken*) const
+{
+    // Because separators should only be sandwitched between brackets in functions
+    // precedency does not matter
+    return true;
+}
+
+void MathExpressions::ParamSeparator::FindNextToken(
+    View<std::vector<Parser::TokenPtr>>,
+    std::vector<Parser::TokenPtr>::const_iterator& token
+) const {
+    token++;
+}
+
+void MathExpressions::ParamSeparator::SplitPoints(
+    View<std::vector<Parser::TokenPtr>>,
+    std::vector<Parser::TokenPtr>::const_iterator,
+    std::vector<View<std::vector<Parser::TokenPtr>>>&
+) const {
+    // Even considering whether separators should have subexpressions
+    // hints that expression itself is invalid
+    throw UnexpectedSeparator(this);
+}
+
 // Matches templated token from any of the provided characters
 template<typename T>
 static Parser::TokenPtr TokenFromEitherChars(
@@ -1033,30 +1060,4 @@ const std::vector<Parser::TokenFactory>& MathExpressions::GetTokenFactories()
     };
 
     return ME_Factories;
-}
-
-TOKEN_CONSTR_IMPL(ParamSeparator, SourcedToken);
-
-bool MathExpressions::ParamSeparator::IsPrecedent(const Parser::IToken*) const
-{
-    // Because separators should only be sandwitched between brackets in functions
-    // precedency does not matter
-    return true;
-}
-
-void MathExpressions::ParamSeparator::FindNextToken(
-    View<std::vector<Parser::TokenPtr>>, 
-    std::vector<Parser::TokenPtr>::const_iterator& token
-) const {
-    token++;
-}
-
-void MathExpressions::ParamSeparator::SplitPoints(
-    View<std::vector<Parser::TokenPtr>>, 
-    std::vector<Parser::TokenPtr>::const_iterator, 
-    std::vector<View<std::vector<Parser::TokenPtr>>>&
-) const {
-    // Even considering whether separators should have subexpressions
-    // hints that expression itself is invalid
-    throw UnexpectedSeparator(this);
 }
