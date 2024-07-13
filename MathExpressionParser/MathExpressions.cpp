@@ -1040,6 +1040,8 @@ const std::vector<Parser::TokenFactory>& MathExpressions::GetTokenFactories()
         MET_HyperbolicArcsineFactory, MET_HyperbolicArccosineFactory,
         MET_HyperbolicArctangentFactory,
 
+        MET_SeparatorFactory,
+
         MET_NumberFactory, MET_PythagoreanFactory,
         MET_ExponentConstFactory, MET_VariableFactory
     };
@@ -1070,5 +1072,5 @@ void MathExpressions::ParamSeparator::SplitPoints(
 ) const {
     // Even considering whether separators should have subexpressions
     // hints that expression itself is invalid
-    throw std::exception();
+    throw UnexpectedSeparator(this);
 }

@@ -167,3 +167,14 @@ public:
 		return Symbol;
 	}
 };
+
+class UnexpectedSeparator : public ParsingError
+{
+public:
+	UnexpectedSeparator(const Parser::IToken* token) : ParsingError(token) {};
+
+	virtual const char* what() const noexcept override
+	{
+		return "Param delimiter outside of any function";
+	}
+};
