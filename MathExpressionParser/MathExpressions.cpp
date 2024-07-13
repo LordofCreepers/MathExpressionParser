@@ -194,10 +194,14 @@ size_t MathExpressions::Sub::GetPriority() const
 long double MathExpressions::Sub::Evaluate(const Tree<Parser::TokenPtr>::NodePtr& node, const MathExpressions::Environment& env) const
 {
     // Same as above
-    if (node->Children.size() < 2) throw UnexpectedSubexpressionCount(this, node->Children.size(), 2);
+    if (node->Children.empty()) throw UnexpectedSubexpressionCount(this, node->Children.size(), 1);
 
     std::vector<long double> params;
     EvaluateChildren(node, params, env);
+
+    // Special rule for when minus sign is placed in front of another token without any applicable
+    // preciding one, equating to negating operation
+    if (params.size() == 1) return -params[0];
 
     // This time, because subtraction is not symmetrical operation,
     // first parameter is the initial value and everything else is being subtracted
