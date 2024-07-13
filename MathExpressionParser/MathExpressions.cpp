@@ -960,26 +960,12 @@ static Parser::TokenPtr MET_HyperbolicArctangentFactory(const std::string& in_ex
 
 static Parser::TokenPtr MET_VariableFactory(const std::string& in_expr, size_t& cursor)
 {
-    // Allowed variable names
-    static std::unordered_set<char> allowed_var_names =
-    {
-        'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p',
-        'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l',
-        'z', 'x', 'c', 'v', 'b', 'n', 'm'
-    };
+    std::string::const_iterator start = in_expr.cbegin() + cursor, end = start;
+    for (; end != in_expr.cend() && std::isalpha(*end); ++end);
 
-    char var_name = in_expr[cursor];
-    // Checks if found character is at least one of the allowed ones
-    if (allowed_var_names.count(var_name))
-    {
-        std::string::const_iterator begin = in_expr.cbegin() + cursor;
-        cursor++;
-        std::string::const_iterator end = in_expr.cbegin() + cursor;
-
-        return std::make_shared<MathExpressions::Variable>(View<std::string>(&in_expr, begin, end));
-    }
-
-    return Parser::TokenPtr();
+    return (start != end) ? 
+        std::make_shared<MathExpressions::Variable>(View<std::string>(&in_expr, start, end)) :
+        Parser::TokenPtr();
 }
 
 // Matches templated token from any of the provided characters
