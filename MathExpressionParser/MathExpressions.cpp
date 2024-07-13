@@ -961,7 +961,7 @@ static Parser::TokenPtr MET_HyperbolicArctangentFactory(const std::string& in_ex
 static Parser::TokenPtr MET_VariableFactory(const std::string& in_expr, size_t& cursor)
 {
     std::string::const_iterator start = in_expr.cbegin() + cursor, end = start;
-    for (; end != in_expr.cend() && std::isalpha(*end); ++end);
+    for (; end != in_expr.cend() && std::isalpha(*end); ++end, ++cursor);
 
     return (start != end) ? 
         std::make_shared<MathExpressions::Variable>(View<std::string>(&in_expr, start, end)) :
@@ -1021,7 +1021,6 @@ static Parser::TokenPtr MET_WhitespaceFactory(const std::string& in_expr, size_t
     return Parser::TokenPtr();
 }
 
-// Shorthand that returns all factories needed for parser to parse mathematical expressions
 const std::vector<Parser::TokenFactory>& MathExpressions::GetTokenFactories()
 {
     /* Pre - generated vector with all the factories packed into it
