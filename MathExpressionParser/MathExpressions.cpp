@@ -1061,3 +1061,22 @@ const std::vector<Parser::TokenFactory>& MathExpressions::GetTokenFactories()
 
     return ME_Factories;
 }
+
+long double MathExpressions::Evaluate(const std::string& expression, const Environment& env)
+{
+    if (expression.empty()) throw std::runtime_error("Empty expression provided");
+
+    Parser parser;
+
+    std::vector<Parser::TokenPtr> tokens;
+    parser.Tokenize(MathExpressions::GetTokenFactories(), expression, tokens);
+
+    Tree<Parser::TokenPtr> ast;
+    parser.Parse(tokens, ast);
+
+    const Parser::TokenPtr token = ast.Root->Value;
+    auto& math_token = std::dynamic_pointer_cast<MathExpressions::Token>(token);
+    if (!math_token) throw std::runtime_error("Parser did not return correct token type ('MathExpression::Token')");
+
+    return math_token->Evaluate(ast.Root, env);
+}

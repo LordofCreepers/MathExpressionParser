@@ -524,4 +524,6 @@ namespace MathExpressions
 	};
 
 	const std::vector<Parser::TokenFactory>& GetTokenFactories();
+
+	long double Evaluate(const std::string&, const Environment&);
 }
