@@ -523,7 +523,9 @@ namespace MathExpressions
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
+	// Shorthand that returns all factories needed for parser to parse mathematical expressions
 	const std::vector<Parser::TokenFactory>& GetTokenFactories();
 
+	// Shorthand that tokenizes, parses and evaluates expression in provided string and environment
 	long double Evaluate(const std::string&, const Environment&);
 }

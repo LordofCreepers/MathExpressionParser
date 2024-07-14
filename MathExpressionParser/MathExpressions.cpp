@@ -1065,7 +1065,7 @@ long double MathExpressions::Evaluate(const std::string& expression, const Envir
 {
     if (expression.empty()) throw std::runtime_error("Empty expression provided");
 
-    Parser parser;
+    Parser::Engine parser;
 
     std::vector<Parser::TokenPtr> tokens;
     parser.Tokenize(MathExpressions::GetTokenFactories(), expression, tokens);
