@@ -527,5 +527,5 @@ namespace MathExpressions
 	const std::vector<Parser::TokenFactory>& GetTokenFactories();
 
 	// Shorthand that tokenizes, parses and evaluates expression in provided string and environment
-	long double Evaluate(const std::string&, const Environment&, Tree<Parser::TokenPtr>& out_ast);
+	long double Evaluate(const std::string&, const Environment&, std::vector<Parser::TokenPtr>&, Tree<Parser::TokenPtr>&);
 }
