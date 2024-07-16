@@ -37,6 +37,32 @@ MathExpressions::SourcedToken::SourcedToken(
     View<std::string> source_range
 ) : Source(source_range) {};
 
+void MathExpressions::SourcedToken::Stringify(
+    View<std::vector<Parser::TokenPtr>> tokens,
+    std::vector<Parser::TokenPtr>::const_iterator cur_token,
+    std::string& out_expression
+) const {
+    out_expression += std::string(Source.Start, Source.End);
+}
+
+void MathExpressions::SourcedToken::Stringify(
+    const Tree<Parser::TokenPtr>& tree,
+    const Tree<Parser::TokenPtr>::Node& cur_node,
+    std::string& out_expression
+) const {
+    out_expression += std::string(Source.Start, Source.End);
+}
+
+void MathExpressions::SourcedToken::Backpatch(
+    std::vector<Parser::TokenPtr>& tokens,
+    std::vector<Parser::TokenPtr>::iterator cur_token
+) {};
+
+void MathExpressions::SourcedToken::Backpatch(
+    Tree<Parser::TokenPtr>& tree,
+    Tree<Parser::TokenPtr>::Node& cur_node
+) {};
+
 TOKEN_CONSTR_IMPL(Token, SourcedToken);
 
 void MathExpressions::Token::EvaluateChildren(
@@ -156,6 +182,22 @@ void MathExpressions::BinaryOp::SplitPoints(
     out_partition.push_back({ expression_range.Source, current_token + 1, expression_range.End });
 }
 
+void MathExpressions::BinaryOp::Stringify(
+    const Tree<Parser::TokenPtr>& tree,
+    const Tree<Parser::TokenPtr>::Node& cur_node,
+    std::string& out_expression
+) const {
+    if (cur_node.Children.size() != 2) throw UnexpectedSubexpressionCount(this, cur_node.Children.size(), 2);
+
+    Tree<Parser::TokenPtr>::Node& lh_child = *cur_node.Children[0];
+    lh_child.Value->Stringify(tree, lh_child, out_expression);
+
+    out_expression += std::string(Source.Start, Source.End);
+
+    Tree<Parser::TokenPtr>::Node& rh_child = *cur_node.Children[1];
+    rh_child.Value->Stringify(tree, rh_child, out_expression);
+}
+
 TOKEN_CONSTR_IMPL(Add, BinaryOp);
 
 size_t MathExpressions::Add::GetPriority() const
@@ -185,6 +227,26 @@ long double MathExpressions::Add::Evaluate(const Tree<Parser::TokenPtr>::NodePtr
 }
 
 TOKEN_CONSTR_IMPL(Sub, BinaryOp);
+
+void MathExpressions::Sub::Stringify(
+    const Tree<Parser::TokenPtr>& tree,
+    const Tree<Parser::TokenPtr>::Node& cur_node,
+    std::string& out_expression
+) const {
+    if (cur_node.Children.empty()) throw UnexpectedSubexpressionCount(this, 0, 1);
+    if (cur_node.Children.size() > 2) throw UnexpectedSubexpressionCount(this, cur_node.Children.size(), 2);
+
+    if (cur_node.Children.size() > 1)
+    {
+        Tree<Parser::TokenPtr>::Node& lh_child = *cur_node.Children[0];
+        lh_child.Value->Stringify(tree, lh_child, out_expression);
+    }
+
+    out_expression.push_back('-');
+
+    Tree<Parser::TokenPtr>::Node& rh_child = *cur_node.Children[cur_node.Children.size() > 1 ? 1 : 0];
+    rh_child.Value->Stringify(tree, rh_child, out_expression);
+}
 
 size_t MathExpressions::Sub::GetPriority() const
 {
@@ -308,6 +370,27 @@ void MathExpressions::Pair::SplitPoints(
     out_partition.push_back({ partition_range.Source, past_bracket, closing_bracket });
 }
 
+void MathExpressions::Pair::Stringify(
+    const Tree<Parser::TokenPtr>& tree,
+    const Tree<Parser::TokenPtr>::Node& cur_node,
+    std::string& out_expression
+) const {
+    out_expression += std::string(Source.Start, Source.End);
+
+    for (Tree<Parser::TokenPtr>::NodePtr child_node : cur_node.Children)
+        child_node->Value->Stringify(tree, *child_node, out_expression);
+}
+
+void MathExpressions::Pair::Backpatch(
+    std::vector<Parser::TokenPtr>& tokens,
+    std::vector<Parser::TokenPtr>::iterator cur_token
+) {
+    std::vector<Parser::TokenPtr>::const_iterator pair = cur_token;
+    FindMatchingToken(View<std::vector<Parser::TokenPtr>>(&tokens, tokens.cbegin(), tokens.cend()), pair);
+
+    PairCache.insert(std::make_pair(&tokens, pair));
+}
+
 MathExpressions::DistinctPair::DistinctPair(
     View<std::string> source_range,
     bool variant
@@ -318,6 +401,13 @@ void MathExpressions::DistinctPair::FindMatchingToken(
     View<std::vector<Parser::TokenPtr>> token_range, 
     std::vector<Parser::TokenPtr>::const_iterator& out_token
 ) const {
+    const PairCacheMap::const_iterator it = PairCache.find(token_range.Source);
+    if (it != PairCache.cend())
+    {
+        out_token = it->second;
+        return;
+    }
+
     out_token++;
 
     // Look for tokens that could potentially be a pair
@@ -339,6 +429,16 @@ MathExpressions::Bracket::Bracket(
     View<std::string> source_range,
     bool closing
 ) : DistinctPair(source_range, closing) {};
+
+void MathExpressions::Bracket::Stringify(
+    const Tree<Parser::TokenPtr>& tree,
+    const Tree<Parser::TokenPtr>::Node& cur_node,
+    std::string& out_expression
+) const {
+    Pair::Stringify(tree, cur_node, out_expression);
+
+    out_expression.push_back(')');
+}
 
 size_t MathExpressions::Bracket::GetPriority() const
 {
@@ -382,6 +482,16 @@ void MathExpressions::IndistinctPair::FindMatchingToken(
 
 TOKEN_CONSTR_IMPL(ModBracket, IndistinctPair);
 
+void MathExpressions::ModBracket::Stringify(
+    const Tree<Parser::TokenPtr>& tree,
+    const Tree<Parser::TokenPtr>::Node& cur_node,
+    std::string& out_expression
+) const {
+    Pair::Stringify(tree, cur_node, out_expression);
+
+    out_expression.push_back('|');
+}
+
 size_t MathExpressions::ModBracket::GetPriority() const
 {
     return std::numeric_limits<size_t>::max();
@@ -406,6 +516,16 @@ long double MathExpressions::ModBracket::Evaluate(
 MathExpressions::Function::Function(
     View<std::string> source_range
 ) : DistinctPair(source_range, false) {};
+
+void MathExpressions::Function::Stringify(
+    const Tree<Parser::TokenPtr>& tree,
+    const Tree<Parser::TokenPtr>::Node& cur_node,
+    std::string& out_expression
+) const {
+    Pair::Stringify(tree, cur_node, out_expression);
+
+    out_expression.push_back(')');
+}
 
 size_t MathExpressions::Function::GetPriority() const
 {
@@ -487,6 +607,24 @@ void MathExpressions::ArgumentedFunction::SplitPoints(
     new_partitioned_range.push_back({ expression_range.Source, prev_separator, found_range.End });
 
     partitioned_range = new_partitioned_range;
+}
+
+void MathExpressions::ArgumentedFunction::Stringify(
+    const Tree<Parser::TokenPtr>& tree,
+    const Tree<Parser::TokenPtr>::Node& cur_node,
+    std::string& out_expression
+) const {
+    out_expression += std::string(Source.Start, Source.End);
+
+    cur_node.Children[0]->Value->Stringify(tree, *cur_node.Children[0], out_expression);
+
+    for (
+        std::vector<Tree<Parser::TokenPtr>::NodePtr>::const_iterator it = cur_node.Children.cbegin() + 1;
+        it != cur_node.Children.cend(); ++it
+    ) {
+        out_expression.append(", ");
+        (*it)->Value->Stringify(tree, **it, out_expression);
+    }
 }
 
 TOKEN_CONSTR_IMPL(Logarithm, ArgumentedFunction);

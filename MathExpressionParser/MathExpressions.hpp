@@ -45,6 +45,26 @@ namespace MathExpressions
 		View<std::string> Source;
 
 		TOKEN_CONSTR_DEF(SourcedToken);
+
+		virtual void Stringify(
+			View<std::vector<Parser::TokenPtr>> tokens,
+			std::vector<Parser::TokenPtr>::const_iterator cur_token,
+			std::string& out_expression
+		) const override;
+		virtual void Stringify(
+			const Tree<Parser::TokenPtr>& tree,
+			const Tree<Parser::TokenPtr>::Node& cur_node,
+			std::string& out_expression
+		) const override;
+
+		virtual void Backpatch(
+			std::vector<Parser::TokenPtr>& tokens,
+			std::vector<Parser::TokenPtr>::iterator cur_token
+		) override;
+		virtual void Backpatch(
+			Tree<Parser::TokenPtr>& tree,
+			Tree<Parser::TokenPtr>::Node& cur_node
+		) override;
 	};
 
 	// Separator of function call parameters
@@ -176,6 +196,12 @@ namespace MathExpressions
 			std::vector<Parser::TokenPtr>::const_iterator,
 			std::vector<View<std::vector<Parser::TokenPtr>>>&
 		) const override;
+
+		virtual void Stringify(
+			const Tree<Parser::TokenPtr>& tree,
+			const Tree<Parser::TokenPtr>::Node& cur_node,
+			std::string& out_expression
+		) const override;
 	};
 
 	// Addition
@@ -197,6 +223,12 @@ namespace MathExpressions
 	{
 	public:
 		TOKEN_CONSTR_DEF(Sub);
+
+		virtual void Stringify(
+			const Tree<Parser::TokenPtr>& tree,
+			const Tree<Parser::TokenPtr>::Node& cur_node,
+			std::string& out_expression
+		) const override;
 
 		virtual size_t GetPriority() const override;
 
@@ -252,6 +284,13 @@ namespace MathExpressions
 	class Pair : public Token
 	{
 	public:
+		using PairCacheMap = std::unordered_map<
+			const std::vector<Parser::TokenPtr>*,
+			std::vector<Parser::TokenPtr>::const_iterator
+		>;
+	protected:
+		PairCacheMap PairCache;
+	public:
 		TOKEN_CONSTR_DEF(Pair);
 
 		virtual void FindNextToken(
@@ -264,6 +303,17 @@ namespace MathExpressions
 			std::vector<Parser::TokenPtr>::const_iterator,
 			std::vector<View<std::vector<Parser::TokenPtr>>>&
 		) const override;
+
+		virtual void Stringify(
+			const Tree<Parser::TokenPtr>& tree,
+			const Tree<Parser::TokenPtr>::Node& cur_node,
+			std::string& out_expression
+		) const override;
+
+		virtual void Backpatch(
+			std::vector<Parser::TokenPtr>& tokens,
+			std::vector<Parser::TokenPtr>::iterator cur_token
+		) override;
 
 		virtual void FindMatchingToken(
 			View<std::vector<Parser::TokenPtr>>,
@@ -299,6 +349,12 @@ namespace MathExpressions
 	public:
 		TOKEN_CONSTR_DEF(Bracket, bool);
 
+		virtual void Stringify(
+			const Tree<Parser::TokenPtr>& tree,
+			const Tree<Parser::TokenPtr>::Node& cur_node,
+			std::string& out_expression
+		) const override;
+
 		virtual size_t GetPriority() const override;
 
 		virtual bool IsMatchingToken(const Pair*) const override;
@@ -327,6 +383,12 @@ namespace MathExpressions
 	public:
 		TOKEN_CONSTR_DEF(ModBracket);
 
+		virtual void Stringify(
+			const Tree<Parser::TokenPtr>& tree,
+			const Tree<Parser::TokenPtr>::Node& cur_node,
+			std::string& out_expression
+		) const override;
+
 		virtual size_t GetPriority() const override;
 
 		virtual bool IsMatchingToken(const Pair*) const override;
@@ -338,6 +400,12 @@ namespace MathExpressions
 	{
 	public:
 		TOKEN_CONSTR_DEF(Function);
+
+		virtual void Stringify(
+			const Tree<Parser::TokenPtr>& tree,
+			const Tree<Parser::TokenPtr>::Node& cur_node,
+			std::string& out_expression
+		) const override;
 			
 		virtual size_t GetPriority() const override;
 
@@ -381,6 +449,12 @@ namespace MathExpressions
 			View<std::vector<Parser::TokenPtr>>,
 			std::vector<Parser::TokenPtr>::const_iterator,
 			std::vector<View<std::vector<Parser::TokenPtr>>>&
+		) const override;
+
+		virtual void Stringify(
+			const Tree<Parser::TokenPtr>& tree,
+			const Tree<Parser::TokenPtr>::Node& cur_node,
+			std::string& out_expression
 		) const override;
 	};
 
