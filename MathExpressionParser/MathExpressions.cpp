@@ -391,6 +391,13 @@ void MathExpressions::Pair::Backpatch(
     PairCache.insert(std::make_pair(&tokens, pair));
 }
 
+void MathExpressions::Pair::FindMatchingToken(
+    View<std::vector<Parser::TokenPtr>> tokens,
+    std::vector<Parser::TokenPtr>::const_iterator& cur_token
+) const {
+    LookupMatchingToken(tokens, cur_token, false);
+}
+
 MathExpressions::DistinctPair::DistinctPair(
     View<std::string> source_range,
     bool variant
