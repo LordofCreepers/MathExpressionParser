@@ -1210,6 +1210,7 @@ long double MathExpressions::Evaluate(
     Parser::Engine parser;
 
     parser.Tokenize(MathExpressions::GetTokenFactories(), expression, out_tokens);
+    parser.Backpatch(out_tokens);
     parser.Parse(out_tokens, out_ast);
 
     const Parser::TokenPtr token = out_ast.Root->Value;
