@@ -290,6 +290,12 @@ namespace MathExpressions
 		>;
 	protected:
 		PairCacheMap PairCache;
+
+		virtual void LookupMatchingToken(
+			View<std::vector<Parser::TokenPtr>> tokens,
+			std::vector<Parser::TokenPtr>::const_iterator& cur_token,
+			bool safe
+		) const = 0;
 	public:
 		TOKEN_CONSTR_DEF(Pair);
 
@@ -315,10 +321,10 @@ namespace MathExpressions
 			std::vector<Parser::TokenPtr>::iterator cur_token
 		) override;
 
-		virtual void FindMatchingToken(
+		void FindMatchingToken(
 			View<std::vector<Parser::TokenPtr>>,
 			std::vector<Parser::TokenPtr>::const_iterator&
-		) const = 0;
+		) const;
 
 		// Checks if token passed as parameter is matching to current token
 		virtual bool IsMatchingToken(const Pair*) const = 0;
@@ -327,6 +333,12 @@ namespace MathExpressions
 	// Basic class for pairs that has their first token distinct from the second
 	class DistinctPair : public Pair
 	{
+	protected:
+		virtual void LookupMatchingToken(
+			View<std::vector<Parser::TokenPtr>> tokens,
+			std::vector<Parser::TokenPtr>::const_iterator& cur_token,
+			bool safe
+		) const override;
 	public:
 		/* The "variant" of this token
 		Currently build framework implies each DistinctPair can only have
@@ -336,11 +348,6 @@ namespace MathExpressions
 		bool Variant;
 
 		TOKEN_CONSTR_DEF(DistinctPair, bool);
-
-		virtual void FindMatchingToken(
-			View<std::vector<Parser::TokenPtr>>,
-			std::vector<Parser::TokenPtr>::const_iterator&
-		) const override;
 	};
 
 	// Opening and closing brackets
@@ -368,13 +375,14 @@ namespace MathExpressions
 	// Base class for pairs of identical tokens
 	class IndistinctPair : public Pair
 	{
+	protected:
+		virtual void LookupMatchingToken(
+			View<std::vector<Parser::TokenPtr>>,
+			std::vector<Parser::TokenPtr>::const_iterator&,
+			bool
+		) const override;
 	public:
 		TOKEN_CONSTR_DEF(IndistinctPair);
-
-		virtual void FindMatchingToken(
-			View<std::vector<Parser::TokenPtr>>,
-			std::vector<Parser::TokenPtr>::const_iterator&
-		) const override;
 	};
 
 	// Modulo brackets ('|')

@@ -386,7 +386,7 @@ void MathExpressions::Pair::Backpatch(
     std::vector<Parser::TokenPtr>::iterator cur_token
 ) {
     std::vector<Parser::TokenPtr>::const_iterator pair = cur_token;
-    FindMatchingToken(View<std::vector<Parser::TokenPtr>>(&tokens, tokens.cbegin(), tokens.cend()), pair);
+    LookupMatchingToken(View<std::vector<Parser::TokenPtr>>(&tokens, tokens.cbegin(), tokens.cend()), pair, true);
 
     PairCache.insert(std::make_pair(&tokens, pair));
 }
@@ -397,15 +397,32 @@ MathExpressions::DistinctPair::DistinctPair(
 ) : Variant(variant), Pair(source_range)
 {}
 
-void MathExpressions::DistinctPair::FindMatchingToken(
+void MathExpressions::DistinctPair::LookupMatchingToken(
     View<std::vector<Parser::TokenPtr>> token_range, 
-    std::vector<Parser::TokenPtr>::const_iterator& out_token
+    std::vector<Parser::TokenPtr>::const_iterator& out_token,
+    bool safe
 ) const {
+    if (Variant)
+    {
+        if (safe)
+        {
+            out_token = token_range.Source->cend();
+            return;
+        }
+        
+        throw NoMatchingToken(this);
+    }
+
     const PairCacheMap::const_iterator it = PairCache.find(token_range.Source);
     if (it != PairCache.cend())
     {
-        out_token = it->second;
-        return;
+        if (it->second != token_range.Source->cend())
+        {
+            out_token = it->second;
+            return;
+        }
+
+        throw NoMatchingToken(this);
     }
 
     out_token++;
@@ -463,10 +480,23 @@ long double MathExpressions::Bracket::Evaluate(const Tree<Parser::TokenPtr>::Nod
 
 TOKEN_CONSTR_IMPL(IndistinctPair, Pair);
 
-void MathExpressions::IndistinctPair::FindMatchingToken(
+void MathExpressions::IndistinctPair::LookupMatchingToken(
     View<std::vector<Parser::TokenPtr>> token_range,
-    std::vector<Parser::TokenPtr>::const_iterator& out_token
+    std::vector<Parser::TokenPtr>::const_iterator& out_token,
+    bool safe
 ) const {
+    PairCacheMap::const_iterator it = PairCache.find(token_range.Source);
+    if (it != PairCache.cend())
+    {
+        if (it->second != token_range.Source->cend())
+        {
+            out_token = it->second;
+            return;
+        }
+
+        throw NoMatchingToken(this);
+    }
+
     out_token++;
 
     for (; out_token != token_range.End; (*out_token)->FindNextToken(token_range, out_token)) 
@@ -477,7 +507,7 @@ void MathExpressions::IndistinctPair::FindMatchingToken(
         if (pair && IsMatchingToken(pair.get())) return;
     }
 
-    throw NoMatchingToken(this);
+    if (!safe) throw NoMatchingToken(this);
 }
 
 TOKEN_CONSTR_IMPL(ModBracket, IndistinctPair);
