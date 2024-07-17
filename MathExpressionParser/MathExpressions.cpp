@@ -614,7 +614,7 @@ void MathExpressions::ArgumentedFunction::Stringify(
     const Tree<Parser::TokenPtr>::Node& cur_node,
     std::string& out_expression
 ) const {
-    out_expression += std::string(Source.Start, Source.End);
+    SourcedToken::Stringify(tree, cur_node, out_expression);
 
     cur_node.Children[0]->Value->Stringify(tree, *cur_node.Children[0], out_expression);
 
