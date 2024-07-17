@@ -192,7 +192,7 @@ void MathExpressions::BinaryOp::Stringify(
     Tree<Parser::TokenPtr>::Node& lh_child = *cur_node.Children[0];
     lh_child.Value->Stringify(tree, lh_child, out_expression);
 
-    out_expression += std::string(Source.Start, Source.End);
+    SourcedToken::Stringify(tree, cur_node, out_expression);
 
     Tree<Parser::TokenPtr>::Node& rh_child = *cur_node.Children[1];
     rh_child.Value->Stringify(tree, rh_child, out_expression);
@@ -242,7 +242,7 @@ void MathExpressions::Sub::Stringify(
         lh_child.Value->Stringify(tree, lh_child, out_expression);
     }
 
-    out_expression.push_back('-');
+    SourcedToken::Stringify(tree, cur_node, out_expression);
 
     Tree<Parser::TokenPtr>::Node& rh_child = *cur_node.Children[cur_node.Children.size() > 1 ? 1 : 0];
     rh_child.Value->Stringify(tree, rh_child, out_expression);
@@ -375,7 +375,7 @@ void MathExpressions::Pair::Stringify(
     const Tree<Parser::TokenPtr>::Node& cur_node,
     std::string& out_expression
 ) const {
-    out_expression += std::string(Source.Start, Source.End);
+    SourcedToken::Stringify(tree, cur_node, out_expression);
 
     for (Tree<Parser::TokenPtr>::NodePtr child_node : cur_node.Children)
         child_node->Value->Stringify(tree, *child_node, out_expression);
