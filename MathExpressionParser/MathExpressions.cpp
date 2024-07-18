@@ -671,7 +671,7 @@ long double MathExpressions::Logarithm::Evaluate(const Tree<Parser::TokenPtr>::N
     std::vector<long double> params;
     EvaluateChildren(node, params, env, 2);
 
-    return logl(params[0]) / logl(params[1]);
+    return log2l(params[0]) / log2l(params[1]);
 }
 
 TOKEN_CONSTR_IMPL(ExponentFunc, Function);
