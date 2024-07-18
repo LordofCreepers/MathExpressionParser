@@ -881,7 +881,7 @@ static Parser::TokenPtr TokenFromCharacter(
     if (in_expr[cursor] == ch)
     {
         std::string::const_iterator start = in_expr.cbegin() + cursor;
-        cursor++;
+        ++cursor;
         std::string::const_iterator end = in_expr.cbegin() + cursor;
         return std::make_shared<T>(View<std::string>(&in_expr, start, end));
     }
@@ -916,12 +916,14 @@ static Parser::TokenPtr TokenFromString(
             break;
         }
 
-        cursor++;
+        ++cursor;
     }
 
-    return (is_equal) ? 
-        std::make_shared<T>(View<std::string>(&in_expr, in_expr.cbegin() + original_cursor, in_expr.cbegin() + cursor))
-        : Parser::TokenPtr();
+    if (is_equal)
+        return std::make_shared<T>(View<std::string>(&in_expr, in_expr.cbegin() + original_cursor, in_expr.cbegin() + cursor));
+    
+    cursor = original_cursor;
+    return Parser::TokenPtr();
 }
 
 static Parser::TokenPtr MET_PythagoreanFactory(const std::string& in_expr, size_t& cursor)
