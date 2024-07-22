@@ -91,27 +91,43 @@ namespace MathExpressions
 	class Token : public SourcedToken
 	{
 	protected:
-		// Extracts values of this token's child tokens down the ast
+		/// <summary>
+		/// Extracts values of this token's child tokens down the ast
+		/// </summary>
+		/// <param name="cur_node">- node in the tree being evaluated with it's associated token
+		/// being this one</param>
+		/// <param name="out_children">- calculated values for this token's children</param>
+		/// <param name="env">- registry of variable values</param>
+		/// <param name="expected_param_count">- a number of expected children.
+		/// If non-zero, automatically throws UnexpectedSubexpressionCount 
+		/// if number of children doesn't match this</param>
 		void EvaluateChildren(
-			const Tree<Parser::TokenPtr>::NodePtr&,
-			std::vector<long double>&,  
-			const Environment&,
-			size_t
+			const Tree<Parser::TokenPtr>::NodePtr& cur_node,
+			std::vector<long double>& out_children,  
+			const Environment& env,
+			size_t expected_param_count
 		) const;
 	public:
 		TOKEN_CONSTR_DEF(Token);
 
-		/* Returns priority of this operation or function
-		The lower the priority, the higher up the tree token is
-		*/
+		/// <summary>
+		/// Returns priority of this operation or function
+		/// The lower the priority, the higher up the tree token is
+		/// </summary>
+		/// <returns>Numeric representation of this token's priority</returns>
 		virtual size_t GetPriority() const = 0;
 
-		/* Mathematically evaluates this token. This can be simply retrieving value of a number or applying
-		operation to it's children
-		*/
+		/// <summary>
+		/// Mathematically evaluates this token. This can be simply retrieving value of a number or applying
+		/// operation to it's children
+		/// </summary>
+		/// <param name="cur_node">- node in the tree being evaluated with it's associated token
+		/// being this one</param>
+		/// <param name="env">- registry of variable values</param>
+		/// <returns>Result of calculation</returns>
 		virtual long double Evaluate(
-			const Tree<Parser::TokenPtr>::NodePtr&, 
-			const Environment&
+			const Tree<Parser::TokenPtr>::NodePtr& cur_node, 
+			const Environment& env
 		) const = 0;
 
 		virtual bool IsPrecedent(const Parser::IToken*) const override;
@@ -137,7 +153,10 @@ namespace MathExpressions
 		) const override;
 	};
 
-	// Number ("123.45" and the like)
+	/* Number 
+	Tries to evaluate 'A' to it's numering value,
+	where 'A' - a string composed of only digits and (optionally) a dot
+	*/
 	class Number : public Numeric
 	{
 	public:
@@ -149,7 +168,9 @@ namespace MathExpressions
 		) const override;
 	};
 
-	// Pi
+	/* Pi
+	Evaluates itself to number 'Pi'
+	*/
 	class Pythagorean : public Numeric
 	{
 	public:
@@ -161,7 +182,9 @@ namespace MathExpressions
 		) const override;
 	};
 
-	// Euler's number
+	/* Euler's number
+	Evaluates itself to Euler's number
+	*/ 
 	class ExponentConst : public Numeric
 	{
 	public:
@@ -173,7 +196,12 @@ namespace MathExpressions
 		) const override;
 	};
 
-	// Variable
+	/* Variable
+	Tries to evaluate 'A' to it's assigned numeric value,
+	where 'A' - string composed of latin alphabetic characters
+	Looks up it's assigned value in the environment. If it doesn't find
+	itself, throws UnresolvedSymbol
+	*/ 
 	class Variable : public Numeric
 	{
 	public:
@@ -185,7 +213,12 @@ namespace MathExpressions
 		) const override;
 	};
 
-	// Basic class for any binary operation - an operation that takes two children and combines their values in a specific way
+	/* Basic class for any binary operation - an operation that takes two children and combines their values in a specific way
+	Tries to evaluate 'A op B',
+	where 'A' and 'B' - any type of token,
+	'op' - operation that processes these tokens.
+	If either 'A' or 'B' is not present, throws UnexpectedSubexpressionCount
+	*/
 	class BinaryOp : public Token
 	{
 	public:
@@ -204,7 +237,9 @@ namespace MathExpressions
 		) const override;
 	};
 
-	// Addition
+	/* Addition
+	Evaluates 'A + B' by adding result of 'A' to the result of 'B'
+	*/ 
 	class Add : public BinaryOp
 	{
 	public:
@@ -218,7 +253,12 @@ namespace MathExpressions
 		) const override;
 	};
 
-	// Subtraction
+	/* Subtraction
+	Evaluates 'A - B' by subtracting result of 'B' from the result of 'A'
+	Is an exception to BinaryOp operating rules, as in
+	'- A' is a valid expression and evaluates to negation of 'A' (inverts sign)
+	Does not throw UnexpectedSubexpressionCount if subexpression count is 1
+	*/
 	class Sub : public BinaryOp
 	{
 	public:
@@ -238,7 +278,9 @@ namespace MathExpressions
 		) const override;
 	};
 
-	// Multiplication
+	/* Multiplication
+	Evaluates 'A * B' by multiplying result of 'A' by the result of 'B'
+	*/
 	class Mul : public BinaryOp
 	{
 	public:
@@ -252,7 +294,9 @@ namespace MathExpressions
 		) const override;
 	};
 
-	// Division
+	/* Division
+	Evaluates 'A / B' by adding result of 'A' to the result of 'B'
+	*/
 	class Div : public BinaryOp
 	{
 	public:
@@ -266,7 +310,9 @@ namespace MathExpressions
 		) const override;
 	};
 
-	// Power
+	/* Power
+	Evaluates 'A ^ B' by raising result of 'A' to the result of 'B'
+	*/
 	class Pow : public BinaryOp
 	{
 	public:
@@ -280,10 +326,19 @@ namespace MathExpressions
 		) const override;
 	};
 
-	// Basic class for a token that needs to have some sort of pair in expression it's in
+	/* Basic class for a token that needs to have some sort of pair in expression it's in
+	Tries to evaluate 'pair...pair',
+	where 'pair' is this token type,
+	'...' - any combination of tokens inbetween them.
+	If there are no subexpressions inbetween the pair, throws UnexpectedSubexpressionCount
+	*/ 
 	class Pair : public Token
 	{
 	public:
+		/* Data structure to keep found pair's positions
+		Key is a pointer to the vector where the pair was found
+		Value is an iterator set to found pair
+		*/
 		using PairCacheMap = std::unordered_map<
 			const std::vector<Parser::TokenPtr>*,
 			std::vector<Parser::TokenPtr>::const_iterator
@@ -291,6 +346,12 @@ namespace MathExpressions
 	protected:
 		PairCacheMap PairCache;
 
+		/// <summary>
+		/// Tries to lookup the matching token in the view
+		/// </summary>
+		/// <param name="tokens">- view of an array of tokens where matching token should be located</param>
+		/// <param name="cur_token">- location of current token in that vector</param>
+		/// <param name="safe">- if true, does not throw NoMatchingToken if a match isn't found</param>
 		virtual void LookupMatchingToken(
 			View<std::vector<Parser::TokenPtr>> tokens,
 			std::vector<Parser::TokenPtr>::const_iterator& cur_token,
@@ -321,13 +382,23 @@ namespace MathExpressions
 			std::vector<Parser::TokenPtr>::iterator cur_token
 		) override;
 
+		/// <summary>
+		/// Tries to find the matching token in a view
+		/// Simply delegates to 'LookupMatchingToken' with 'safe' set to false
+		/// </summary>
+		/// <param name="tokens">- view of an array of tokens where matching token should be located</param>
+		/// <param name="cur_token">- location of current token in that vector</param>
 		void FindMatchingToken(
-			View<std::vector<Parser::TokenPtr>>,
-			std::vector<Parser::TokenPtr>::const_iterator&
+			View<std::vector<Parser::TokenPtr>> tokens,
+			std::vector<Parser::TokenPtr>::const_iterator& cur_token
 		) const;
 
-		// Checks if token passed as parameter is matching to current token
-		virtual bool IsMatchingToken(const Pair*) const = 0;
+		/// <summary>
+		/// Checks if token passed as parameter is matching to current token
+		/// </summary>
+		/// <param name="other">- other token</param>
+		/// <returns>Whether 'other' can be considered a match</returns>
+		virtual bool IsMatchingToken(const Pair* other) const = 0;
 	};
 
 	// Basic class for pairs that has their first token distinct from the second
@@ -350,7 +421,11 @@ namespace MathExpressions
 		TOKEN_CONSTR_DEF(DistinctPair, bool);
 	};
 
-	// Opening and closing brackets
+	/* Opening and closing brackets
+	Evaluates expression '(A)' to... just 'A'. That's it
+	These, however, have high priority, therefore they implicitly
+	shift the priority of their subexpressions
+	*/
 	class Bracket : public DistinctPair
 	{
 	public:
@@ -385,7 +460,7 @@ namespace MathExpressions
 		TOKEN_CONSTR_DEF(IndistinctPair);
 	};
 
-	// Modulo brackets ('|')
+	// Modulo brackets ('|'). Work much like normal brackets, but evaluate the absolute value of the subexpressions
 	class ModBracket : public IndistinctPair
 	{
 	public:
@@ -404,6 +479,12 @@ namespace MathExpressions
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
+	/* Base class for functions
+	Evaluates 'A(...)',
+	where 'A' - function identifier,
+	'...' - function parameters (depend on the function itself)
+	If parameter count do not match the expected amount, throws UnexpectedSubexpressionCount
+	*/
 	class Function : public DistinctPair
 	{
 	public:
@@ -420,7 +501,9 @@ namespace MathExpressions
 		virtual bool IsMatchingToken(const Pair*) const override;
 	};
 
-	// Logarithm with the base of E
+	/* Logarithm with the base of E
+	Evaluates 'ln(A)' to natural logarithm of 'A'
+	*/
 	class LogarithmE : public Function
 	{
 	public:
@@ -429,7 +512,9 @@ namespace MathExpressions
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
-	// Logarithm with the base of 2
+	/* Logarithm with the base of 2
+	Evaluates 'log2(A)' to logarithm of 'A' with the base of 2
+	*/
 	class Logarithm2 : public Function
 	{
 	public:
@@ -438,7 +523,9 @@ namespace MathExpressions
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
-	// Logarithm with the base of 10
+	/* Logarithm with the base of 10
+	Evaluates 'log10(A)' to logarithm of 'A' with the base of 10
+	*/
 	class Logarithm10 : public Function
 	{
 	public:
@@ -447,7 +534,7 @@ namespace MathExpressions
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
-	// Function with multiple arguments
+	// Base for function with multiple arguments
 	class ArgumentedFunction : public Function
 	{
 	public:
@@ -466,7 +553,10 @@ namespace MathExpressions
 		) const override;
 	};
 
-	// Logarithm with dynamic base
+	/* Logarithm with dynamic base
+	Evaluates 'log(A, B)' to logarithm of 'A' with the base of 'B',
+	where 'A' and 'B' - any tokens
+	*/
 	class Logarithm : public ArgumentedFunction
 	{
 	public:
@@ -475,7 +565,9 @@ namespace MathExpressions
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
-	// Euler's number raised to a power
+	/* Euler's number raised to a power
+	Evaluates 'exp(A)' by raising 'e' to the power of 'A'
+	*/
 	class ExponentFunc : public Function
 	{
 	public:
@@ -484,6 +576,10 @@ namespace MathExpressions
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
+	/* Square root
+	Evaluates 'sqrt(A)' by taking the square root of 'A'
+	If 'A' evaluates to a negative number, throws NegativeNumberRoot
+	*/
 	class SquareRoot : public Function
 	{
 	public:
@@ -492,7 +588,12 @@ namespace MathExpressions
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
-	// Sign (-1 for negative values, 1 for positive values, 0 for 0)
+	/* Sign
+	Evaluates 'sign(A)' to either 
+	* 1 if 'A' evaluates to positive number, 
+	* 0 if 'A' evaluates to 0 or 
+	* -1 if 'A' evaluates to negative number
+	*/
 	class Sign : public Function
 	{
 	public:
@@ -501,6 +602,9 @@ namespace MathExpressions
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
+	/* Sine
+	Evaluates 'sin(A)' to the sine of 'A'
+	*/
 	class Sine : public Function
 	{
 	public:
@@ -509,6 +613,9 @@ namespace MathExpressions
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
+	/* Cosine
+	Evaluates 'cos(A)' to the cosine of 'A'
+	*/
 	class Cosine : public Function
 	{
 	public:
@@ -517,6 +624,9 @@ namespace MathExpressions
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
+	/* Tangent
+	Evaluates 'tan(A)' or 'tg(A)' to the tangent of 'A'
+	*/
 	class Tangent : public Function
 	{
 	public:
@@ -525,6 +635,9 @@ namespace MathExpressions
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
+	/* Cotangent
+	Evaluates 'ctan(A)' or 'ctg(A)' to the cotangent of 'A'
+	*/
 	class Cotangent : public Function
 	{
 	public:
@@ -533,6 +646,9 @@ namespace MathExpressions
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
+	/* Arcsine
+	Evaluates 'asin(A)' or 'arcsin(A)' to the arcsine of 'A'
+	*/
 	class Arcsine : public Function
 	{
 	public:
@@ -541,6 +657,9 @@ namespace MathExpressions
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
+	/* Arccosine
+	Evaluates 'acos(A)' or 'arccos(A)' to the arccosine of 'A'
+	*/
 	class Arccosine : public Function
 	{
 	public:
@@ -549,6 +668,9 @@ namespace MathExpressions
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
+	/* Arctangent
+	Evaluates 'atg(A)', 'atan(A)', 'arctg(A)' or 'arctan(A)' to arctangent of 'A'
+	*/
 	class Arctangent : public Function
 	{
 	public:
@@ -557,6 +679,9 @@ namespace MathExpressions
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
+	/* Hyperbolic sine
+	Evaluates 'sinh(A)' to hyperbolic sine of 'A'
+	*/
 	class HyperbolicSine : public Function
 	{
 	public:
@@ -565,6 +690,9 @@ namespace MathExpressions
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
+	/* Hyperbolic cosine
+	Evaluates 'cosh(A)' to hyperbolic cosine of 'A'
+	*/
 	class HyperbolicCosine : public Function
 	{
 	public:
@@ -573,6 +701,9 @@ namespace MathExpressions
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
+	/* Hyperbolic tangent
+	Evaluates 'tgh(A)' or 'tanh(A)' to hyperbolic tangent of 'A'
+	*/
 	class HyperbolicTangent : public Function
 	{
 	public:
@@ -581,6 +712,9 @@ namespace MathExpressions
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
+	/* Hyperbolic arcsine
+	Evaluates 'asinh(A)' or 'arcsinh(A)' to hyperbolic arcsine of 'A'
+	*/
 	class HyperbolicArcsine : public Function
 	{
 	public:
@@ -589,6 +723,9 @@ namespace MathExpressions
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
+	/* Hyperbolic arccosine
+	Evaluates 'acosh(A)' or 'arccosh(A)' to hyperbolic arccosine of 'A'
+	*/
 	class HyperbolicArccosine : public Function
 	{
 	public:
@@ -597,6 +734,9 @@ namespace MathExpressions
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
+	/* Hyperbolic arctangent
+	Evaluates 'atgh(A)', 'atanh(A)', 'arctgh(A)' or 'arctanh(A)' to hyperbolic arctangent of 'A'
+	*/
 	class HyperbolicArctangent : public Function
 	{
 	public:
@@ -605,9 +745,13 @@ namespace MathExpressions
 		virtual long double Evaluate(const Tree<Parser::TokenPtr>::NodePtr&, const Environment&) const override;
 	};
 
-	// Shorthand that returns all factories needed for parser to parse mathematical expressions
+	/// <summary>
+	/// Shorthand that returns all factories needed for parser to parse mathematical expressions
+	/// </summary>
 	const std::vector<Parser::TokenFactory>& GetTokenFactories();
 
-	// Shorthand that tokenizes, parses and evaluates expression in provided string and environment
+	/// <summary>
+	/// Shorthand that tokenizes, parses and evaluates expression in provided string and environment
+	/// </summary>
 	long double Evaluate(const std::string&, const Environment&, std::vector<Parser::TokenPtr>&, Tree<Parser::TokenPtr>&);
 }
