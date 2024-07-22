@@ -53,6 +53,7 @@ void MathExpressions::SourcedToken::Stringify(
     out_expression += std::string(Source.Start, Source.End);
 }
 
+// Since almost no tokens use backpatching for anything, default is just doing nothing
 void MathExpressions::SourcedToken::Backpatch(
     std::vector<Parser::TokenPtr>& tokens,
     std::vector<Parser::TokenPtr>::iterator cur_token
@@ -103,7 +104,7 @@ void MathExpressions::Token::FindNextToken(
     std::vector<Parser::TokenPtr>::const_iterator& out_ptr
 ) const {
     // By default, returns the following token in the array
-    out_ptr++;
+    ++out_ptr;
 }
 
 TOKEN_CONSTR_IMPL(Numeric, Token);
@@ -352,7 +353,7 @@ void MathExpressions::Pair::FindNextToken(
     FindMatchingToken(token_range, out_token);
 
     // Moves the cursor past it's pair
-    out_token++;
+    ++out_token;
 }
 
 void MathExpressions::Pair::SplitPoints(
@@ -375,6 +376,8 @@ void MathExpressions::Pair::Stringify(
     const Tree<Parser::TokenPtr>::Node& cur_node,
     std::string& out_expression
 ) const {
+    // The idea is just to stringify this token, then everything between the pair
+    // Closing tokens should be handled on a case-by-case basis
     SourcedToken::Stringify(tree, cur_node, out_expression);
 
     for (Tree<Parser::TokenPtr>::NodePtr child_node : cur_node.Children)
@@ -385,9 +388,11 @@ void MathExpressions::Pair::Backpatch(
     std::vector<Parser::TokenPtr>& tokens,
     std::vector<Parser::TokenPtr>::iterator cur_token
 ) {
+    // Find matching token
     std::vector<Parser::TokenPtr>::const_iterator pair = cur_token;
     LookupMatchingToken(View<std::vector<Parser::TokenPtr>>(&tokens, tokens.cbegin(), tokens.cend()), pair, true);
 
+    // Toss whatever found in the map
     PairCache.insert(std::make_pair(&tokens, pair));
 }
 
@@ -409,10 +414,13 @@ void MathExpressions::DistinctPair::LookupMatchingToken(
     std::vector<Parser::TokenPtr>::const_iterator& out_token,
     bool safe
 ) const {
+    // If this is the 'second' token in the pair, it shouldn't be considered
+    // to have a pair
     if (Variant)
     {
         if (safe)
         {
+            // Moves iterator to the end to signify that no match could be found
             out_token = token_range.Source->cend();
             return;
         }
@@ -420,9 +428,12 @@ void MathExpressions::DistinctPair::LookupMatchingToken(
         throw NoMatchingToken(this);
     }
 
+    // If cached pair had already been found, linearly searching for it can be skipped
     const PairCacheMap::const_iterator it = PairCache.find(token_range.Source);
     if (it != PairCache.cend())
     {
+        // If cached 'pair' turns out to be the end of the container,
+        // this means that matching token couldn't be found during caching
         if (it->second != token_range.Source->cend())
         {
             out_token = it->second;
@@ -432,7 +443,7 @@ void MathExpressions::DistinctPair::LookupMatchingToken(
         throw NoMatchingToken(this);
     }
 
-    out_token++;
+    ++out_token;
 
     // Look for tokens that could potentially be a pair
     for (; out_token != token_range.End; (*out_token)->FindNextToken(token_range, out_token))
@@ -472,7 +483,7 @@ size_t MathExpressions::Bracket::GetPriority() const
 
 bool MathExpressions::Bracket::IsMatchingToken(const Pair* token) const
 {
-    // Match with other tokens
+    // Other brackets is a potential match
     return static_cast<bool>(dynamic_cast<const Bracket*>(token));
 }
 
@@ -492,6 +503,7 @@ void MathExpressions::IndistinctPair::LookupMatchingToken(
     std::vector<Parser::TokenPtr>::const_iterator& out_token,
     bool safe
 ) const {
+    // Same idea as with 'DistinctPair::LookupMatchingToken'
     PairCacheMap::const_iterator it = PairCache.find(token_range.Source);
     if (it != PairCache.cend())
     {
@@ -504,7 +516,7 @@ void MathExpressions::IndistinctPair::LookupMatchingToken(
         throw NoMatchingToken(this);
     }
 
-    out_token++;
+    ++out_token;
 
     for (; out_token != token_range.End; (*out_token)->FindNextToken(token_range, out_token)) 
     {
@@ -536,6 +548,7 @@ size_t MathExpressions::ModBracket::GetPriority() const
 
 bool MathExpressions::ModBracket::IsMatchingToken(const Pair* Pair) const
 {
+    // Other brackets is a potential match
     return static_cast<bool>(dynamic_cast<const ModBracket*>(Pair));
 }
 
@@ -871,7 +884,7 @@ static Parser::TokenPtr MET_NumberFactory(const std::string& in_expr, size_t& cu
     );
 }
 
-// Matches templated token from a single character
+// Matches templated token if the character at the cursor is specified character
 template<typename T>
 static Parser::TokenPtr TokenFromCharacter(
     const std::string& in_expr, size_t& cursor,
@@ -895,7 +908,9 @@ static Parser::TokenPtr MET_ExponentConstFactory(const std::string& in_expr, siz
     return TokenFromCharacter<MathExpressions::ExponentConst>(in_expr, cursor, 'e');
 }
 
-// Matches templated token from a substring
+/* Matches templated token if the next characters past the cursor are equal to
+all the characters in 'from'
+*/
 template<typename T>
 static Parser::TokenPtr TokenFromString(
     const std::string& in_expr, size_t& cursor,
@@ -933,7 +948,9 @@ static Parser::TokenPtr MET_PythagoreanFactory(const std::string& in_expr, size_
     return TokenFromString<MathExpressions::Pythagorean>(in_expr, cursor, const_name);
 }
 
-// Matches templated token from either of provided substrings
+/* Matches templated token if characters past the string is equal to any
+of the provided strings
+*/
 template<typename T>
 static Parser::TokenPtr TokenFromEitherStrings(
     const std::string& in_expr, size_t& cursor,
@@ -1159,7 +1176,7 @@ void MathExpressions::ParamSeparator::FindNextToken(
     View<std::vector<Parser::TokenPtr>>,
     std::vector<Parser::TokenPtr>::const_iterator& token
 ) const {
-    token++;
+    ++token;
 }
 
 void MathExpressions::ParamSeparator::SplitPoints(
@@ -1172,7 +1189,7 @@ void MathExpressions::ParamSeparator::SplitPoints(
     throw UnexpectedSeparator(this);
 }
 
-// Matches templated token from any of the provided characters
+// Matches templated token if character at the cursor is either of the characters provided
 template<typename T>
 static Parser::TokenPtr TokenFromEitherChars(
     const std::string& in_expr, size_t& cursor,
@@ -1248,13 +1265,18 @@ long double MathExpressions::Evaluate(
 
     Parser::Engine parser;
 
+    // Identify tokens in the string
     parser.Tokenize(MathExpressions::GetTokenFactories(), expression, out_tokens);
+    // Fill-in any information other token require that involve other tokens
     parser.Backpatch(out_tokens);
+    // Build an AST out of provided tokens
     parser.Parse(out_tokens, out_ast);
 
+    // If result contains something that isn't a subclass of 'MathExpression::Token', something went wrong
     const Parser::TokenPtr token = out_ast.Root->Value;
     auto& math_token = std::dynamic_pointer_cast<MathExpressions::Token>(token);
     if (!math_token) throw std::runtime_error("Parser did not return correct token type ('MathExpression::Token')");
 
+    // Calculate and return the result
     return math_token->Evaluate(out_ast.Root, env);
 }
