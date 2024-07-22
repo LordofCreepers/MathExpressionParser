@@ -7,6 +7,7 @@ The easiest way you can do this is to use Git to download the library and build 
 1. Open shell/cmd/bash (your choice)
 1. Navigate to the folder where your project resides (or create a folder and then move there)
 1. Clone this repo with ```git clone https://github.com/LordofCreepers/MathExpressionParser```
+1. Initialize it's submodules with ```git submodule update --init --remote```
 1. Create `CMakeLists.txt` somewhere in your folder
 1. After `add_executable` or `add_library` of your project, add 
 ```add_subdirectory(<Path_to_where_you_cloned_Parser>)  
