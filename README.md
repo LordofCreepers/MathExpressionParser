@@ -11,7 +11,8 @@ The easiest way you can do this is to use Git to download the library and build 
 1. After `add_executable` or `add_library` of your project, add 
 ```add_subdirectory(<Path_to_where_you_cloned_Parser>)  
 target_link_libraries(${PROJECT_NAME} PUBLIC Parser)
-target_include_directories(${PROJECT_NAME} PUBLIC "${PROJECT_BINARY_DIR}" "${PROJECT_SOURCE_DIR}/<Path_to_where_you_cloned_Parser>")```
+target_include_directories(${PROJECT_NAME} PUBLIC "${PROJECT_BINARY_DIR}" "${PROJECT_SOURCE_DIR}/<Path_to_where_you_cloned_Parser>")
+```
 
 In order to parse and evaluate an expression, call `MathExpressions::Evaluate`
 
